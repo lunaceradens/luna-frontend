@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Luna Cerade - Interni Alat v5.6</title>
+    <title>Luna Cerade - Interni Alat v5.7.1</title>
     <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
     <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
     <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
@@ -40,8 +40,6 @@
             .stavka-row-3col { display: grid; grid-template-columns: 1fr 1fr 60px; gap: 8px; align-items: center; }
             .promet-grid { grid-template-columns: 1fr !important; gap: 10px !important; }
             .stats-grid-2col { grid-template-columns: 1fr !important; }
-            .top-tabs-desktop { display: none !important; }
-            .top-tabs-mobile { display: flex !important; }
             input, select, button { min-height: 44px; }
             .small-btn { min-height: 36px !important; }
             .mobile-only { display: block; }
@@ -52,7 +50,6 @@
         @media (min-width: 769px) {
             .mobile-only { display: none !important; }
             .responsive-cards { display: none !important; }
-            .top-tabs-mobile { display: none !important; }
         }
     </style>
 </head>
@@ -233,6 +230,26 @@
             const [isMobile, setIsMobile] = useState(typeof window !== 'undefined' && window.innerWidth <= 768);
             const [hamburgerOpen, setHamburgerOpen] = useState(false);
             const [expandedZapId, setExpandedZapId] = useState(null); // za collapse u Bonusi karticama
+            
+            // === Print modal (univerzalan za sve uredjaje) ===
+            const [printModalHtml, setPrintModalHtml] = useState(null);
+            
+            const otvoriPrintModal = (html) => {
+                setPrintModalHtml(html);
+            };
+            
+            const stampajIzModala = () => {
+                // Otvori novi prozor SAMO u trenutku kad korisnik klikne dugme - to izbegne pop-up blocker
+                const w = window.open("", "_blank");
+                if (!w) {
+                    alert("Browser je blokirao otvaranje novog prozora. Dozvoli pop-up za ovaj sajt u podešavanjima browser-a.");
+                    return;
+                }
+                w.document.write(printModalHtml);
+                w.document.close();
+                w.focus();
+                setTimeout(() => { try { w.print(); } catch(e) {} }, 500);
+            };
             
             useEffect(() => {
                 const handleResize = () => setIsMobile(window.innerWidth <= 768);
@@ -530,16 +547,20 @@
                     <div style={s.top}>
                         <div style={{fontWeight: 800, color: C.text, fontSize: "18px", display: "flex", alignItems: "center"}}>
                             <img src="https://lunacerade.rs/wp-content/uploads/2023/05/logo-luna-cerade.png" alt="" style={{height: "26px", marginRight: "10px"}} onError={(e) => e.target.style.display='none'} />
-                            Interni Alat <span style={{color: C.accent, fontSize: "11px", marginLeft: "6px"}}>v5.6</span>
+                            Interni Alat <span style={{color: C.accent, fontSize: "11px", marginLeft: "6px"}}>v5.7.1</span>
                         </div>
-                        {/* Desktop tabovi */}
-                        <div className="top-tabs-desktop" style={{display: "flex", gap: "6px"}}>
-                            {["nalozi", "troskovi", "bonusi", "statistika"].map(t => (
-                                <button key={t} style={s.btn(tab === t, C.bgCard)} onClick={() => setTab(t)}>{t.toUpperCase()}</button>
-                            ))}
-                        </div>
-                        {/* Hamburger dugme */}
-                        <button className="top-tabs-mobile" style={{display: "none", background: "transparent", border: "none", color: C.text, fontSize: "28px", cursor: "pointer", padding: "5px 10px"}} onClick={() => setHamburgerOpen(true)}>≡</button>
+                        {/* Desktop tabovi - prikazani samo na desktopu */}
+                        {!isMobile && (
+                            <div style={{display: "flex", gap: "6px"}}>
+                                {["nalozi", "troskovi", "bonusi", "statistika"].map(t => (
+                                    <button key={t} style={s.btn(tab === t, C.bgCard)} onClick={() => setTab(t)}>{t.toUpperCase()}</button>
+                                ))}
+                            </div>
+                        )}
+                        {/* Hamburger dugme - samo na mobilnom */}
+                        {isMobile && (
+                            <button style={{background: "transparent", border: "none", color: C.text, fontSize: "32px", cursor: "pointer", padding: "5px 12px", lineHeight: 1}} onClick={() => setHamburgerOpen(true)}>≡</button>
+                        )}
                     </div>
 
                     {/* Hamburger meni overlay */}
@@ -693,8 +714,8 @@
                                                                 </span>
                                                             </div>
                                                             <div style={{display: "grid", gridTemplateColumns: "1fr 1fr", gap: "8px", marginTop: "12px"}}>
-                                                                <button style={{...s.btn(true, C.bgCard), padding: "10px"}} onClick={() => printDoc(otpremnicaHTML(n))}>🖨️ Otpremnica</button>
-                                                                <button style={{...s.btn(true, C.bgCard), padding: "10px"}} onClick={() => printDoc(garantniHTML(n))}>📄 Garancija</button>
+                                                                <button style={{...s.btn(true, C.bgCard), padding: "10px"}} onClick={() => otvoriPrintModal(otpremnicaHTML(n))}>🖨️ Otpremnica</button>
+                                                                <button style={{...s.btn(true, C.bgCard), padding: "10px"}} onClick={() => otvoriPrintModal(garantniHTML(n))}>📄 Garancija</button>
                                                             </div>
                                                         </div>
                                                     );
@@ -745,8 +766,8 @@
                                                             {kesR !== 0 && <div style={{fontSize: "10px"}}>{fmt(kesR, "din")}</div>}
                                                         </td>
                                                         <td style={{padding: "12px 10px", textAlign: "center"}}>
-                                                            <button style={{...s.btn(false), fontSize: "9px", padding: "4px 6px", marginRight: "4px"}} onClick={() => printDoc(otpremnicaHTML(n))}>🖨️ Otpremnica</button>
-                                                            <button style={{...s.btn(false), fontSize: "9px", padding: "4px 6px"}} onClick={() => printDoc(garantniHTML(n))}>GARANCIJA</button>
+                                                            <button style={{...s.btn(false), fontSize: "9px", padding: "4px 6px", marginRight: "4px"}} onClick={() => otvoriPrintModal(otpremnicaHTML(n))}>🖨️ Otpremnica</button>
+                                                            <button style={{...s.btn(false), fontSize: "9px", padding: "4px 6px"}} onClick={() => otvoriPrintModal(garantniHTML(n))}>GARANCIJA</button>
                                                         </td>
                                                         <td style={{padding: "12px 10px", textAlign: "right"}}>
                                                             <button style={{background: "transparent", border: "none", color: C.red, cursor: "pointer", fontSize: "14px"}} onClick={() => obrisiNalog(n.id)}>❌</button>
@@ -1349,6 +1370,27 @@
                                         </table>
                                     </div>
                                 )}
+                            </div>
+                        </div>
+                    )}
+                    {/* Print Modal - radi i na mobilnom i na desktopu */}
+                    {printModalHtml && (
+                        <div style={{position: 'fixed', top:0, left:0, right:0, bottom:0, background: 'rgba(0,0,0,0.85)', zIndex: 2000, display: 'flex', flexDirection: 'column', backdropFilter: 'blur(5px)'}}>
+                            {/* Header sa dugmadima */}
+                            <div style={{display: "flex", justifyContent: "space-between", alignItems: "center", padding: "12px 20px", background: "#1a1a2e", borderBottom: `1px solid ${C.border}`, position: "sticky", top: 0, zIndex: 10}}>
+                                <button style={{...s.btn(false), padding: "10px 16px", fontSize: "14px"}} onClick={() => setPrintModalHtml(null)}>✕ Zatvori</button>
+                                <button style={{...s.btn(true, C.accent), padding: "10px 20px", fontSize: "14px", fontWeight: "bold"}} onClick={stampajIzModala}>🖨️ Štampaj / Sačuvaj PDF</button>
+                            </div>
+                            {/* Sadržaj dokumenta - scrollable, renderovan kroz dangerouslySetInnerHTML */}
+                            <div style={{flex: 1, overflow: "auto", background: "#ffffff", padding: "0"}}>
+                                <div 
+                                    dangerouslySetInnerHTML={{ __html: printModalHtml.replace(/<!DOCTYPE[^>]*>|<html[^>]*>|<\/html>|<head>[\s\S]*?<\/head>|<body[^>]*>|<\/body>/gi, '') }}
+                                    style={{minHeight: "100%", color: "#1a1a2e", padding: "20px"}}
+                                />
+                            </div>
+                            {/* Footer info */}
+                            <div style={{padding: "10px 16px", background: "#1a1a2e", borderTop: `1px solid ${C.border}`, color: C.muted, fontSize: "11px", textAlign: "center"}}>
+                                💡 Klikni "Štampaj" → izaberi pisač ili "Sačuvaj kao PDF" za slanje kupcu
                             </div>
                         </div>
                     )}

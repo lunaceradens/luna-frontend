@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Luna Cerade - Interni Alat v5.3</title>
+    <title>Luna Cerade - Interni Alat v5.5</title>
     <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
     <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
     <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
@@ -26,7 +26,7 @@
 <body>
     <div id="root"></div>
     <script type="text/babel" data-presets="react,env">
-        const { useState, useEffect } = React;
+        const { useState, useEffect, useRef } = React;
 
         const API_URL = "https://luna-backend-7xe6.onrender.com/api";
 
@@ -196,6 +196,30 @@
             const [editingZapId, setEditingZapId] = useState(null);
             const [editingZapIme, setEditingZapIme] = useState("");
 
+            // Auto-save logika za bonuse
+            const saveTimerRef = useRef(null);
+            const [autoSavingBonus, setAutoSavingBonus] = useState(false);
+
+            const triggerAutoSave = (newData, year, month) => {
+                if (saveTimerRef.current) clearTimeout(saveTimerRef.current);
+                setAutoSavingBonus(true);
+                saveTimerRef.current = setTimeout(async () => {
+                    try {
+                        const res = await fetch(`${API_URL}/bonusi`, {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ godina: year, mesec: month, podaci: newData })
+                        });
+                        if (!res.ok) throw new Error("Greška");
+                        setAutoSavingBonus(false);
+                        flash("✓ Auto-snimljeno!");
+                    } catch (e) {
+                        setAutoSavingBonus(false);
+                        flash("Greška pri auto-snimanju!", true);
+                    }
+                }, 2000);
+            };
+
             const fetchData = async () => {
                 setLoading(true);
                 try {
@@ -348,17 +372,25 @@
                 } catch (e) { flash("Greška pri promeni redosleda!", true); }
             };
 
-            const uMesecuZap = (bArr, zapIndex, valuta) => {
-                if (!bArr || !bArr[zapIndex]) return 0;
-                const c = bArr[zapIndex];
+            const uMesecuZap = (bArr, zapId, valuta) => {
+                if (!bArr) return 0;
+                // Novi format: objekat {zapId: {...}}; stari format: niz [{...}]
+                let c;
+                if (Array.isArray(bArr)) {
+                    // Legacy fallback - mapira po indeksu (zapId-1) za stare nizove
+                    c = bArr[zapId - 1];
+                } else {
+                    c = bArr[String(zapId)];
+                }
+                if (!c) return 0;
                 if (valuta === 'eur') return num(c.w1e !== undefined ? c.w1e : c.eur) + num(c.w2e) + num(c.w3e) + num(c.w4e) + num(c.w5e);
                 else return num(c.w1r !== undefined ? c.w1r : c.rsd) + num(c.w2r) + num(c.w3r) + num(c.w4r) + num(c.w5r);
             };
 
-            const godisnjiUkupnoZap = (godina, zapIndex, valuta) => {
+            const godisnjiUkupnoZap = (godina, zapId, valuta) => {
                 let total = 0;
                 for (let m = 0; m < 12; m++) {
-                    total += uMesecuZap(bonusi[`${godina}-${m}`], zapIndex, valuta);
+                    total += uMesecuZap(bonusi[`${godina}-${m}`], zapId, valuta);
                 }
                 return total;
             };
@@ -379,16 +411,32 @@
                     const trosRSD = ts.filter(t => t.valuta === "RSD").reduce((s, t) => s + num(t.iznos), 0);
 
                     let bonE = 0; let bonRSD = 0;
-                    const brojZap = Math.max(zaposleni.length, 9);
+                    const sumirajBArr = (bArr) => {
+                        if (!bArr) return;
+                        if (Array.isArray(bArr)) {
+                            // Stari format - mapira po indeksu
+                            const brojZap = Math.max(zaposleni.length, bArr.length);
+                            for (let i = 0; i < brojZap; i++) {
+                                if (bArr[i]) {
+                                    bonE += uMesecuZap(bArr, i + 1, 'eur');
+                                    bonRSD += uMesecuZap(bArr, i + 1, 'rsd');
+                                }
+                            }
+                        } else {
+                            // Novi format - prolazi kroz sve ID-jeve u objektu
+                            Object.keys(bArr).forEach(zapIdStr => {
+                                const zapId = parseInt(zapIdStr);
+                                bonE += uMesecuZap(bArr, zapId, 'eur');
+                                bonRSD += uMesecuZap(bArr, zapId, 'rsd');
+                            });
+                        }
+                    };
+                    
                     if (month !== null) {
-                        const bArr = bonusi[`${year}-${month}`];
-                        if (Array.isArray(bArr)) { for(let i=0; i<brojZap; i++) { bonE += uMesecuZap(bArr, i, 'eur'); bonRSD += uMesecuZap(bArr, i, 'rsd'); } }
+                        sumirajBArr(bonusi[`${year}-${month}`]);
                     } else {
                         Object.keys(bonusi).forEach(k => { 
-                            if(k.startsWith(`${year}-`)) {
-                                const bArr = bonusi[k];
-                                if (Array.isArray(bArr)) { for(let i=0; i<brojZap; i++) { bonE += uMesecuZap(bArr, i, 'eur'); bonRSD += uMesecuZap(bArr, i, 'rsd'); } }
-                            }
+                            if (k.startsWith(`${year}-`)) sumirajBArr(bonusi[k]);
                         });
                     }
 
@@ -401,9 +449,9 @@
                 }
             };
 
-            const calcGodisnjiBonusZap = (godina, empIndex, valuta) => {
+            const calcGodisnjiBonusZap = (godina, zapId, valuta) => {
                 let total = 0;
-                for(let m=0; m<12; m++) total += uMesecuZap(bonusi[`${godina}-${m}`], empIndex, valuta);
+                for(let m=0; m<12; m++) total += uMesecuZap(bonusi[`${godina}-${m}`], zapId, valuta);
                 return total;
             };
 
@@ -431,7 +479,7 @@
                     <div style={s.top}>
                         <div style={{fontWeight: 800, color: C.text, fontSize: "18px", display: "flex", alignItems: "center"}}>
                             <img src="https://lunacerade.rs/wp-content/uploads/2023/05/logo-luna-cerade.png" alt="" style={{height: "26px", marginRight: "10px"}} onError={(e) => e.target.style.display='none'} />
-                            Interni Alat <span style={{color: C.accent, fontSize: "11px", marginLeft: "6px"}}>v5.3</span>
+                            Interni Alat <span style={{color: C.accent, fontSize: "11px", marginLeft: "6px"}}>v5.5</span>
                         </div>
                         <div style={{display: "flex", gap: "6px"}}>
                             {["nalozi", "troskovi", "bonusi", "statistika"].map(t => (
@@ -594,6 +642,7 @@
                                     <select style={{...s.inp, width:"auto"}} value={bonusYear} onChange={e => setBonusYear(+e.target.value)}>
                                         {GODINE.map(g => <option key={g} value={g}>{g}</option>)}
                                     </select>
+                                    {autoSavingBonus && <div style={{color: C.accent, fontSize: "11px", fontStyle: "italic", padding: "0 10px"}}>💾 Auto-snimam...</div>}
                                     <button style={{...s.btn(true, C.teal), marginLeft: "auto"}} onClick={dodajZaposlenog}>➕ Dodaj zaposlenog</button>
                                 </div>
                                 <table style={{width: "100%", borderCollapse: "collapse", minWidth: "1100px"}}>
@@ -609,26 +658,63 @@
                                             ))}
                                             <th style={{padding:"8px", textAlign:"right", color: C.accent}}>MESEČNO UKUPNO</th>
                                             <th style={{padding:"8px", textAlign:"right", color: C.main}}>GODIŠNJE UKUPNO<br/><span style={{fontSize:"9px", fontWeight:"normal"}}>({bonusYear})</span></th>
+                                            <th style={{padding:"8px", textAlign:"right", color: C.muted}}>PROŠLA GODINA<br/><span style={{fontSize:"9px", fontWeight:"normal"}}>({bonusYear - 1})</span></th>
+                                            <th style={{padding:"8px", textAlign:"center", color: C.text}}>TREND</th>
                                         </tr>
                                     </thead>
                                     <tbody>
                                         {zaposleni.length === 0 ? (
-                                            <tr><td colSpan="8" style={{padding: "30px", textAlign: "center", color: C.muted, fontStyle: "italic"}}>Nema zaposlenih. Klikni "Dodaj zaposlenog" gore.</td></tr>
+                                            <tr><td colSpan="10" style={{padding: "30px", textAlign: "center", color: C.muted, fontStyle: "italic"}}>Nema zaposlenih. Klikni "Dodaj zaposlenog" gore.</td></tr>
                                         ) : zaposleni.map((zap, i) => {
-                                            const c = (bonusi[`${bonusYear}-${bonusMonth}`] || [])[i] || {};
+                                            // Lookup po zap.id (novi format), sa fallback-om za stari niz format
+                                            const bArrTrenutni = bonusi[`${bonusYear}-${bonusMonth}`];
+                                            let c = {};
+                                            if (bArrTrenutni) {
+                                                if (Array.isArray(bArrTrenutni)) {
+                                                    c = bArrTrenutni[zap.redni_broj - 1] || {};
+                                                } else {
+                                                    c = bArrTrenutni[String(zap.id)] || {};
+                                                }
+                                            }
                                             const w1e = c.w1e !== undefined ? c.w1e : (c.eur || "");
                                             const w1r = c.w1r !== undefined ? c.w1r : (c.rsd || "");
                                             
                                             const tE = num(w1e) + num(c.w2e) + num(c.w3e) + num(c.w4e) + num(c.w5e);
                                             const tR = num(w1r) + num(c.w2r) + num(c.w3r) + num(c.w4r) + num(c.w5r);
                                             
-                                            const godE = godisnjiUkupnoZap(bonusYear, i, 'eur');
-                                            const godR = godisnjiUkupnoZap(bonusYear, i, 'rsd');
+                                            const godE = godisnjiUkupnoZap(bonusYear, zap.id, 'eur');
+                                            const godR = godisnjiUkupnoZap(bonusYear, zap.id, 'rsd');
+                                            
+                                            // Prošla godina ukupno
+                                            const proslaE = godisnjiUkupnoZap(bonusYear - 1, zap.id, 'eur');
+                                            const proslaR = godisnjiUkupnoZap(bonusYear - 1, zap.id, 'rsd');
+                                            
+                                            // Trend = razlika + procenat (samo EUR za prikaz, jer 2 valute kompliku)
+                                            const razE = godE - proslaE;
+                                            const razR = godR - proslaR;
+                                            const procE = proslaE > 0 ? Math.round((razE / proslaE) * 100) : (godE > 0 ? 100 : 0);
+                                            const procR = proslaR > 0 ? Math.round((razR / proslaR) * 100) : (godR > 0 ? 100 : 0);
+                                            const trendIkona = (raz) => raz > 0 ? "▲" : (raz < 0 ? "▼" : "—");
+                                            const trendBoja = (raz) => raz > 0 ? "#4a9e6e" : (raz < 0 ? C.red : C.muted);
                                             
                                             const updateNedelja = (nedelja, valuta, val) => {
-                                                const newData = [...(bonusi[`${bonusYear}-${bonusMonth}`] || Array(zaposleni.length).fill({}))];
-                                                while (newData.length < zaposleni.length) newData.push({});
-                                                const oldObj = newData[i] || {};
+                                                // Novi format - objekat sa zap.id ključevima
+                                                let trenutniBonusi = bonusi[`${bonusYear}-${bonusMonth}`];
+                                                let newData;
+                                                
+                                                if (Array.isArray(trenutniBonusi)) {
+                                                    // Migracija starog niza u objekat
+                                                    newData = {};
+                                                    zaposleni.forEach(z => {
+                                                        const stari = trenutniBonusi[z.redni_broj - 1];
+                                                        if (stari) newData[String(z.id)] = stari;
+                                                    });
+                                                } else {
+                                                    newData = { ...(trenutniBonusi || {}) };
+                                                }
+                                                
+                                                const zapKey = String(zap.id);
+                                                const oldObj = newData[zapKey] || {};
                                                 let newObj = { ...oldObj };
                                                 
                                                 if (nedelja === 1) {
@@ -640,8 +726,9 @@
                                                 if (valuta === 'EUR') newObj[`w${nedelja}e`] = val;
                                                 else newObj[`w${nedelja}r`] = val;
                                                 
-                                                newData[i] = newObj;
+                                                newData[zapKey] = newObj;
                                                 setBonusi({ ...bonusi, [`${bonusYear}-${bonusMonth}`]: newData });
+                                                triggerAutoSave(newData, bonusYear, bonusMonth);
                                             };
 
                                             const isEditing = editingZapId === zap.id;
@@ -700,6 +787,24 @@
                                                         {godE > 0 && <div style={{color: C.main, fontWeight: "bold", fontSize:"13px"}}>{fmt(godE)} €</div>}
                                                         {godR > 0 && <div style={{color: C.modra, fontSize: "11px"}}>{fmt(godR)} din</div>}
                                                         {godE === 0 && godR === 0 && <div style={{color: C.muted}}>—</div>}
+                                                    </td>
+                                                    <td style={{padding: "8px", textAlign:"right"}}>
+                                                        {proslaE > 0 && <div style={{color: C.muted, fontSize:"12px"}}>{fmt(proslaE)} €</div>}
+                                                        {proslaR > 0 && <div style={{color: C.muted, fontSize: "10px"}}>{fmt(proslaR)} din</div>}
+                                                        {proslaE === 0 && proslaR === 0 && <div style={{color: C.muted}}>—</div>}
+                                                    </td>
+                                                    <td style={{padding: "8px", textAlign:"center"}}>
+                                                        {(godE > 0 || proslaE > 0) && (
+                                                            <div style={{color: trendBoja(razE), fontSize:"11px", fontWeight:"bold"}}>
+                                                                {trendIkona(razE)} {Math.abs(razE).toFixed(0)}€ {procE !== 0 ? `(${procE > 0 ? '+' : ''}${procE}%)` : ''}
+                                                            </div>
+                                                        )}
+                                                        {(godR > 0 || proslaR > 0) && (
+                                                            <div style={{color: trendBoja(razR), fontSize:"10px"}}>
+                                                                {trendIkona(razR)} {Math.abs(razR).toFixed(0)}din {procR !== 0 ? `(${procR > 0 ? '+' : ''}${procR}%)` : ''}
+                                                            </div>
+                                                        )}
+                                                        {godE === 0 && proslaE === 0 && godR === 0 && proslaR === 0 && <div style={{color: C.muted}}>—</div>}
                                                     </td>
                                                 </tr>
                                             )
@@ -869,8 +974,8 @@
                                             </thead>
                                             <tbody>
                                                 {zaposleni.map((zap, i) => {
-                                                    const bArrMesec = bonusi[`${filterYear}-${detaljiModal.mesec}`]; const mesecEUR = uMesecuZap(bArrMesec, i, 'eur'); const mesecRSD = uMesecuZap(bArrMesec, i, 'rsd');
-                                                    const godEUR = calcGodisnjiBonusZap(filterYear, i, 'eur'); const godRSD = calcGodisnjiBonusZap(filterYear, i, 'rsd'); const proslaEUR = calcGodisnjiBonusZap(filterYear - 1, i, 'eur'); const proslaRSD = calcGodisnjiBonusZap(filterYear - 1, i, 'rsd');
+                                                    const bArrMesec = bonusi[`${filterYear}-${detaljiModal.mesec}`]; const mesecEUR = uMesecuZap(bArrMesec, zap.id, 'eur'); const mesecRSD = uMesecuZap(bArrMesec, zap.id, 'rsd');
+                                                    const godEUR = calcGodisnjiBonusZap(filterYear, zap.id, 'eur'); const godRSD = calcGodisnjiBonusZap(filterYear, zap.id, 'rsd'); const proslaEUR = calcGodisnjiBonusZap(filterYear - 1, zap.id, 'eur'); const proslaRSD = calcGodisnjiBonusZap(filterYear - 1, zap.id, 'rsd');
                                                     const trendEUR = godEUR - proslaEUR; const trendKarakterEUR = trendEUR > 0 ? "▲" : (trendEUR < 0 ? "▼" : "—"); const trendBojaEUR = trendEUR > 0 ? "#4a9e6e" : (trendEUR < 0 ? C.red : C.muted);
                                                     return (
                                                         <tr key={zap.id} style={{borderBottom: `1px solid ${C.border}`}}>

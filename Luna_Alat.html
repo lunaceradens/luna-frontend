@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Luna Cerade - Interni Alat v5.5</title>
+    <title>Luna Cerade - Interni Alat v5.6</title>
     <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
     <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
     <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
@@ -18,9 +18,42 @@
         .ikonica-lupa { font-size: 10px; opacity: 0.5; margin-left: 5px; }
         .zap-ime-edit { cursor: pointer; padding: 4px 6px; border-radius: 4px; transition: background 0.2s; }
         .zap-ime-edit:hover { background: rgba(140, 86, 242, 0.15); }
-        .zap-action-btn { background: transparent; border: none; cursor: pointer; padding: 2px 4px; opacity: 0.6; transition: opacity 0.2s; }
+        .zap-action-btn { background: transparent; border: none; cursor: pointer; padding: 2px 4px; opacity: 0.6; transition: opacity 0.2s; min-width: 28px; min-height: 28px; }
         .zap-action-btn:hover { opacity: 1; }
         .zap-action-btn:disabled { opacity: 0.2; cursor: not-allowed; }
+        
+        /* === MOBILNI RESPONSIVE === */
+        .mobile-card { background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.08); border-radius: 10px; padding: 14px; margin-bottom: 12px; }
+        .mobile-card-row { display: flex; justify-content: space-between; padding: 4px 0; font-size: 13px; }
+        .mobile-card-label { color: #b8b8cc; font-size: 11px; text-transform: uppercase; letter-spacing: 1px; }
+        .mobile-card-value { color: #ffffff; font-weight: 600; }
+        .hamburger-menu { display: none; position: fixed; top: 0; right: -100%; width: 75%; max-width: 280px; height: 100vh; background: #100b2e; padding: 70px 20px 20px; box-shadow: -4px 0 20px rgba(0,0,0,0.5); z-index: 200; transition: right 0.3s ease; }
+        .hamburger-menu.open { right: 0; }
+        .hamburger-overlay { display: none; position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.6); z-index: 199; }
+        .hamburger-overlay.open { display: block; }
+        
+        @media (max-width: 768px) {
+            .desktop-only { display: none !important; }
+            .mobile-only { display: block !important; }
+            .stavka-grid { grid-template-columns: 1fr !important; gap: 8px !important; }
+            .stavka-row-2col { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+            .stavka-row-3col { display: grid; grid-template-columns: 1fr 1fr 60px; gap: 8px; align-items: center; }
+            .promet-grid { grid-template-columns: 1fr !important; gap: 10px !important; }
+            .stats-grid-2col { grid-template-columns: 1fr !important; }
+            .top-tabs-desktop { display: none !important; }
+            .top-tabs-mobile { display: flex !important; }
+            input, select, button { min-height: 44px; }
+            .small-btn { min-height: 36px !important; }
+            .mobile-only { display: block; }
+            .responsive-table { display: none !important; }
+            .responsive-cards { display: block !important; }
+        }
+        
+        @media (min-width: 769px) {
+            .mobile-only { display: none !important; }
+            .responsive-cards { display: none !important; }
+            .top-tabs-mobile { display: none !important; }
+        }
     </style>
 </head>
 <body>
@@ -195,6 +228,17 @@
 
             const [editingZapId, setEditingZapId] = useState(null);
             const [editingZapIme, setEditingZapIme] = useState("");
+            
+            // === MOBILNI: detekcija i hamburger meni ===
+            const [isMobile, setIsMobile] = useState(typeof window !== 'undefined' && window.innerWidth <= 768);
+            const [hamburgerOpen, setHamburgerOpen] = useState(false);
+            const [expandedZapId, setExpandedZapId] = useState(null); // za collapse u Bonusi karticama
+            
+            useEffect(() => {
+                const handleResize = () => setIsMobile(window.innerWidth <= 768);
+                window.addEventListener('resize', handleResize);
+                return () => window.removeEventListener('resize', handleResize);
+            }, []);
 
             // Auto-save logika za bonuse
             const saveTimerRef = useRef(null);
@@ -238,6 +282,13 @@
             };
 
             useEffect(() => { fetchData(); }, []);
+            
+            // Detektovanje promene velicine ekrana
+            useEffect(() => {
+                const handleResize = () => setIsMobile(window.innerWidth <= 768);
+                window.addEventListener('resize', handleResize);
+                return () => window.removeEventListener('resize', handleResize);
+            }, []);
 
             const flash = (msg, isError = false) => { setSaved({ msg, isError }); setTimeout(() => setSaved(""), 3000); };
             const updatesNalogStavke = (index, key, value) => { const noveStavke = [...form.stavke]; noveStavke[index] = { ...noveStavke[index], [key]: value }; setForm({ ...form, stavke: noveStavke }); };
@@ -479,11 +530,27 @@
                     <div style={s.top}>
                         <div style={{fontWeight: 800, color: C.text, fontSize: "18px", display: "flex", alignItems: "center"}}>
                             <img src="https://lunacerade.rs/wp-content/uploads/2023/05/logo-luna-cerade.png" alt="" style={{height: "26px", marginRight: "10px"}} onError={(e) => e.target.style.display='none'} />
-                            Interni Alat <span style={{color: C.accent, fontSize: "11px", marginLeft: "6px"}}>v5.5</span>
+                            Interni Alat <span style={{color: C.accent, fontSize: "11px", marginLeft: "6px"}}>v5.6</span>
                         </div>
-                        <div style={{display: "flex", gap: "6px"}}>
+                        {/* Desktop tabovi */}
+                        <div className="top-tabs-desktop" style={{display: "flex", gap: "6px"}}>
                             {["nalozi", "troskovi", "bonusi", "statistika"].map(t => (
                                 <button key={t} style={s.btn(tab === t, C.bgCard)} onClick={() => setTab(t)}>{t.toUpperCase()}</button>
+                            ))}
+                        </div>
+                        {/* Hamburger dugme */}
+                        <button className="top-tabs-mobile" style={{display: "none", background: "transparent", border: "none", color: C.text, fontSize: "28px", cursor: "pointer", padding: "5px 10px"}} onClick={() => setHamburgerOpen(true)}>≡</button>
+                    </div>
+
+                    {/* Hamburger meni overlay */}
+                    <div className={`hamburger-overlay ${hamburgerOpen ? 'open' : ''}`} onClick={() => setHamburgerOpen(false)}></div>
+                    <div className={`hamburger-menu ${hamburgerOpen ? 'open' : ''}`}>
+                        <div style={{position: "absolute", top: 15, right: 15}}>
+                            <button style={{background: "transparent", border: "none", color: C.text, fontSize: "24px", cursor: "pointer"}} onClick={() => setHamburgerOpen(false)}>×</button>
+                        </div>
+                        <div style={{display: "flex", flexDirection: "column", gap: "10px"}}>
+                            {["nalozi", "troskovi", "bonusi", "statistika"].map(t => (
+                                <button key={t} style={{...s.btn(tab === t, C.main), padding: "14px", fontSize: "14px", textAlign: "left"}} onClick={() => { setTab(t); setHamburgerOpen(false); }}>{t.toUpperCase()}</button>
                             ))}
                         </div>
                     </div>
@@ -515,23 +582,43 @@
 
                                         {form.stavke.map((stavka, index) => (
                                             <div key={index} style={{...s.card, marginBottom: "10px", padding: "15px", position: "relative", background: "rgba(0,0,0,0.1)"}}>
-                                                <div style={{display: "grid", gridTemplateColumns: "2fr 1.5fr 1fr 1fr 1fr 1fr 30px", gap: "8px"}}>
-                                                    <input style={s.inp} placeholder="Proizvod (npr Tenda)" value={stavka.opis} onChange={e => updatesNalogStavke(index, 'opis', e.target.value)} />
-                                                    <input style={s.inp} placeholder="Dimenzije" value={stavka.dimenzije} onChange={e => updatesNalogStavke(index, 'dimenzije', e.target.value)} />
-                                                    <input style={s.inp} type="number" placeholder="Kol." value={stavka.kolicina} onChange={e => updatesNalogStavke(index, 'kolicina', e.target.value)} />
-                                                    <select style={s.inp} value={stavka.jedinica} onChange={e => updatesNalogStavke(index, 'jedinica', e.target.value)}>
-                                                        <option value="m²">m²</option><option value="kom">kom</option><option value="m">m</option>
-                                                    </select>
-                                                    <input style={{...s.inp, border: `1px solid ${C.accent}`}} type="number" placeholder="Cena stavke" value={stavka.iznos} onChange={e => updatesNalogStavke(index, 'iznos', e.target.value)} />
-                                                    <select style={s.inp} value={stavka.valuta} onChange={e => updatesNalogStavke(index, 'valuta', e.target.value)}>
-                                                        <option value="EUR">EUR</option><option value="RSD">RSD</option>
-                                                    </select>
-                                                    <button style={{background: "transparent", border: "none", color: C.red, cursor: "pointer", fontSize: "16px"}} onClick={() => obrisiStavkuIzFormulara(index)}>×</button>
-                                                </div>
+                                                {isMobile ? (
+                                                    <div style={{display: "flex", flexDirection: "column", gap: "8px"}}>
+                                                        <input style={s.inp} placeholder="Proizvod (npr Tenda)" value={stavka.opis} onChange={e => updatesNalogStavke(index, 'opis', e.target.value)} />
+                                                        <input style={s.inp} placeholder="Dimenzije" value={stavka.dimenzije} onChange={e => updatesNalogStavke(index, 'dimenzije', e.target.value)} />
+                                                        <div style={{display: "grid", gridTemplateColumns: "1fr 1fr", gap: "8px"}}>
+                                                            <input style={s.inp} type="number" placeholder="Količina" value={stavka.kolicina} onChange={e => updatesNalogStavke(index, 'kolicina', e.target.value)} />
+                                                            <select style={s.inp} value={stavka.jedinica} onChange={e => updatesNalogStavke(index, 'jedinica', e.target.value)}>
+                                                                <option value="m²">m²</option><option value="kom">kom</option><option value="m">m</option>
+                                                            </select>
+                                                        </div>
+                                                        <div style={{display: "grid", gridTemplateColumns: "2fr 1fr", gap: "8px"}}>
+                                                            <input style={{...s.inp, border: `1px solid ${C.accent}`}} type="number" placeholder="Cena stavke" value={stavka.iznos} onChange={e => updatesNalogStavke(index, 'iznos', e.target.value)} />
+                                                            <select style={s.inp} value={stavka.valuta} onChange={e => updatesNalogStavke(index, 'valuta', e.target.value)}>
+                                                                <option value="EUR">EUR</option><option value="RSD">RSD</option>
+                                                            </select>
+                                                        </div>
+                                                        <button style={{background: "rgba(255, 123, 140, 0.15)", border: `1px solid ${C.red}`, color: C.red, cursor: "pointer", padding: "10px", borderRadius: "6px", fontSize: "13px", fontWeight: "600"}} onClick={() => obrisiStavkuIzFormulara(index)}>🗑️ Obriši stavku</button>
+                                                    </div>
+                                                ) : (
+                                                    <div style={{display: "grid", gridTemplateColumns: "2fr 1.5fr 1fr 1fr 1fr 1fr 30px", gap: "8px"}}>
+                                                        <input style={s.inp} placeholder="Proizvod (npr Tenda)" value={stavka.opis} onChange={e => updatesNalogStavke(index, 'opis', e.target.value)} />
+                                                        <input style={s.inp} placeholder="Dimenzije" value={stavka.dimenzije} onChange={e => updatesNalogStavke(index, 'dimenzije', e.target.value)} />
+                                                        <input style={s.inp} type="number" placeholder="Kol." value={stavka.kolicina} onChange={e => updatesNalogStavke(index, 'kolicina', e.target.value)} />
+                                                        <select style={s.inp} value={stavka.jedinica} onChange={e => updatesNalogStavke(index, 'jedinica', e.target.value)}>
+                                                            <option value="m²">m²</option><option value="kom">kom</option><option value="m">m</option>
+                                                        </select>
+                                                        <input style={{...s.inp, border: `1px solid ${C.accent}`}} type="number" placeholder="Cena stavke" value={stavka.iznos} onChange={e => updatesNalogStavke(index, 'iznos', e.target.value)} />
+                                                        <select style={s.inp} value={stavka.valuta} onChange={e => updatesNalogStavke(index, 'valuta', e.target.value)}>
+                                                            <option value="EUR">EUR</option><option value="RSD">RSD</option>
+                                                        </select>
+                                                        <button style={{background: "transparent", border: "none", color: C.red, cursor: "pointer", fontSize: "16px"}} onClick={() => obrisiStavkuIzFormulara(index)}>×</button>
+                                                    </div>
+                                                )}
                                             </div>
                                         ))}
                                         
-                                        <div style={{...s.card, marginTop: "20px", padding: "15px", display: "grid", gridTemplateColumns: "2fr 1fr 1fr", gap: "10px", border: `1px solid ${C.main}`, background: "rgba(140, 86, 242, 0.05)"}}>
+                                        <div style={{...s.card, marginTop: "20px", padding: "15px", display: "grid", gridTemplateColumns: isMobile ? "1fr" : "2fr 1fr 1fr", gap: "10px", border: `1px solid ${C.main}`, background: "rgba(140, 86, 242, 0.05)"}}>
                                             <div style={{display: "flex", flexDirection: "column", justifyContent: "center"}}>
                                                 <div style={{fontSize: "12px", color: C.muted}}>BRUTO PROMET NALOGA:</div>
                                                 <div style={{fontSize: "18px", fontWeight: "bold", color: C.text}}>
@@ -555,7 +642,66 @@
                                 )}
 
                                 {subTab === "lista" && (
-                                    <div style={{...s.card, overflowX: "auto"}}>
+                                    <div>
+                                        {/* Mobilni: kartice */}
+                                        {isMobile ? (
+                                            <div>
+                                                {nalozi.length === 0 ? (
+                                                    <div style={{...s.card, padding: "30px", textAlign: "center", color: C.muted, fontStyle: "italic"}}>Nema još naloga u bazi. Unesi prvi!</div>
+                                                ) : nalozi.map((n, i) => {
+                                                    const kesE = u_eur(n) - k_eur(n);
+                                                    const kesR = u_rsd(n) - k_rsd(n);
+                                                    const brojStavki = n.stavke ? n.stavke.length : (n.vrsta ? 1 : 0);
+                                                    return (
+                                                        <div key={n.id || i} className="mobile-card">
+                                                            <div style={{display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: "10px"}}>
+                                                                <div>
+                                                                    <div style={{color: C.accent, fontWeight: "bold", fontSize: "14px"}}>{n.broj}</div>
+                                                                    <div style={{color: C.muted, fontSize: "11px"}}>{n.datum}</div>
+                                                                </div>
+                                                                <button style={{background: "rgba(255, 123, 140, 0.15)", border: `1px solid ${C.red}`, color: C.red, cursor: "pointer", fontSize: "16px", borderRadius: "6px", width: "36px", height: "36px"}} onClick={() => obrisiNalog(n.id)}>❌</button>
+                                                            </div>
+                                                            <div style={{padding: "8px 0", borderTop: `1px solid ${C.border}`, borderBottom: `1px solid ${C.border}`, marginBottom: "10px"}}>
+                                                                <div style={{color: C.text, fontWeight: "bold", fontSize: "14px"}}>{n.kupac || "—"}</div>
+                                                                <div style={{color: C.main, fontSize: "12px"}}>
+                                                                    {brojStavki > 1 ? `${brojStavki} stavke posla` : `${n.vrsta || "Tende"} (${n.kolicina || 0} ${n.jedinica || "m²"})`}
+                                                                </div>
+                                                            </div>
+                                                            <div className="mobile-card-row">
+                                                                <span className="mobile-card-label">Bruto promet:</span>
+                                                                <span className="mobile-card-value">
+                                                                    {u_eur(n) > 0 && <span>{fmt(u_eur(n), "€")}</span>}
+                                                                    {u_eur(n) > 0 && u_rsd(n) > 0 && " + "}
+                                                                    {u_rsd(n) > 0 && <span style={{color: C.modra}}>{fmt(u_rsd(n), "din")}</span>}
+                                                                </span>
+                                                            </div>
+                                                            <div className="mobile-card-row">
+                                                                <span className="mobile-card-label">Fiskalna kasa:</span>
+                                                                <span className="mobile-card-value" style={{color: C.muted}}>
+                                                                    {k_eur(n) > 0 && <span>{fmt(k_eur(n), "€")}</span>}
+                                                                    {k_eur(n) > 0 && k_rsd(n) > 0 && " + "}
+                                                                    {k_rsd(n) > 0 && <span>{fmt(k_rsd(n), "din")}</span>}
+                                                                    {k_eur(n) === 0 && k_rsd(n) === 0 && "—"}
+                                                                </span>
+                                                            </div>
+                                                            <div className="mobile-card-row">
+                                                                <span className="mobile-card-label">Keš majstora:</span>
+                                                                <span className="mobile-card-value" style={{color: C.accent}}>
+                                                                    {kesE !== 0 && <span>{fmt(kesE, "€")}</span>}
+                                                                    {kesE !== 0 && kesR !== 0 && " + "}
+                                                                    {kesR !== 0 && <span>{fmt(kesR, "din")}</span>}
+                                                                </span>
+                                                            </div>
+                                                            <div style={{display: "grid", gridTemplateColumns: "1fr 1fr", gap: "8px", marginTop: "12px"}}>
+                                                                <button style={{...s.btn(true, C.bgCard), padding: "10px"}} onClick={() => printDoc(otpremnicaHTML(n))}>🖨️ Otpremnica</button>
+                                                                <button style={{...s.btn(true, C.bgCard), padding: "10px"}} onClick={() => printDoc(garantniHTML(n))}>📄 Garancija</button>
+                                                            </div>
+                                                        </div>
+                                                    );
+                                                })}
+                                            </div>
+                                        ) : (
+                                        <div style={{...s.card, overflowX: "auto"}}>
                                         <table style={{width: "100%", borderCollapse: "collapse", fontSize: "11px", minWidth: "1100px"}}>
                                             <thead>
                                                 <tr style={{color: C.muted, textTransform: "uppercase", fontSize: "10px", borderBottom: `1px solid ${C.border}`}}>
@@ -609,6 +755,8 @@
                                                 )})}
                                             </tbody>
                                         </table>
+                                        </div>
+                                        )}
                                     </div>
                                 )}
                             </div>
@@ -635,7 +783,7 @@
 
                         {tab === "bonusi" && (
                             <div style={{...s.card, overflowX: "auto"}}>
-                                <div style={{display: "flex", gap: "10px", marginBottom: "15px", alignItems: "center"}}>
+                                <div style={{display: "flex", gap: "10px", marginBottom: "15px", alignItems: "center", flexWrap: "wrap"}}>
                                     <select style={{...s.inp, width:"auto"}} value={bonusMonth} onChange={e => setBonusMonth(+e.target.value)}>
                                         {MONTHS_SHORT.map((m, i) => <option key={i} value={i}>{m}</option>)}
                                     </select>
@@ -643,8 +791,141 @@
                                         {GODINE.map(g => <option key={g} value={g}>{g}</option>)}
                                     </select>
                                     {autoSavingBonus && <div style={{color: C.accent, fontSize: "11px", fontStyle: "italic", padding: "0 10px"}}>💾 Auto-snimam...</div>}
-                                    <button style={{...s.btn(true, C.teal), marginLeft: "auto"}} onClick={dodajZaposlenog}>➕ Dodaj zaposlenog</button>
+                                    <button style={{...s.btn(true, C.teal), marginLeft: isMobile ? "0" : "auto"}} onClick={dodajZaposlenog}>➕ Dodaj zaposlenog</button>
                                 </div>
+                                
+                                {isMobile ? (
+                                    <div>
+                                        {zaposleni.length === 0 ? (
+                                            <div style={{...s.card, padding: "30px", textAlign: "center", color: C.muted, fontStyle: "italic"}}>Nema zaposlenih. Klikni "Dodaj zaposlenog" gore.</div>
+                                        ) : zaposleni.map((zap, i) => {
+                                            const bArrTrenutni = bonusi[`${bonusYear}-${bonusMonth}`];
+                                            let c = {};
+                                            if (bArrTrenutni) {
+                                                if (Array.isArray(bArrTrenutni)) c = bArrTrenutni[zap.redni_broj - 1] || {};
+                                                else c = bArrTrenutni[String(zap.id)] || {};
+                                            }
+                                            const w1e = c.w1e !== undefined ? c.w1e : (c.eur || "");
+                                            const w1r = c.w1r !== undefined ? c.w1r : (c.rsd || "");
+                                            const tE = num(w1e) + num(c.w2e) + num(c.w3e) + num(c.w4e) + num(c.w5e);
+                                            const tR = num(w1r) + num(c.w2r) + num(c.w3r) + num(c.w4r) + num(c.w5r);
+                                            const godE = godisnjiUkupnoZap(bonusYear, zap.id, 'eur');
+                                            const godR = godisnjiUkupnoZap(bonusYear, zap.id, 'rsd');
+                                            const proslaE = godisnjiUkupnoZap(bonusYear - 1, zap.id, 'eur');
+                                            const proslaR = godisnjiUkupnoZap(bonusYear - 1, zap.id, 'rsd');
+                                            const razE = godE - proslaE;
+                                            const procE = proslaE > 0 ? Math.round((razE / proslaE) * 100) : (godE > 0 ? 100 : 0);
+                                            const trendIkonaE = razE > 0 ? "▲" : (razE < 0 ? "▼" : "—");
+                                            const trendBojaE = razE > 0 ? "#4a9e6e" : (razE < 0 ? C.red : C.muted);
+                                            
+                                            const updateNedeljaMobile = (nedelja, valuta, val) => {
+                                                let trenutniBonusi = bonusi[`${bonusYear}-${bonusMonth}`];
+                                                let newData;
+                                                if (Array.isArray(trenutniBonusi)) {
+                                                    newData = {};
+                                                    zaposleni.forEach(z => { const stari = trenutniBonusi[z.redni_broj - 1]; if (stari) newData[String(z.id)] = stari; });
+                                                } else { newData = { ...(trenutniBonusi || {}) }; }
+                                                const zapKey = String(zap.id);
+                                                const oldObj = newData[zapKey] || {};
+                                                let newObj = { ...oldObj };
+                                                if (nedelja === 1) {
+                                                    newObj.w1e = newObj.w1e !== undefined ? newObj.w1e : (newObj.eur || "");
+                                                    newObj.w1r = newObj.w1r !== undefined ? newObj.w1r : (newObj.rsd || "");
+                                                    newObj.eur = ""; newObj.rsd = "";
+                                                }
+                                                if (valuta === 'EUR') newObj[`w${nedelja}e`] = val;
+                                                else newObj[`w${nedelja}r`] = val;
+                                                newData[zapKey] = newObj;
+                                                setBonusi({ ...bonusi, [`${bonusYear}-${bonusMonth}`]: newData });
+                                                triggerAutoSave(newData, bonusYear, bonusMonth);
+                                            };
+
+                                            const isExpanded = expandedZapId === zap.id;
+                                            const isEditing = editingZapId === zap.id;
+
+                                            return (
+                                                <div key={zap.id} className="mobile-card">
+                                                    {/* Header kartice: ime + akcije */}
+                                                    <div style={{display: "flex", alignItems: "center", gap: "8px", marginBottom: "10px"}}>
+                                                        <div style={{display: "flex", flexDirection: "column", gap: "2px"}}>
+                                                            <button className="zap-action-btn" disabled={i === 0} onClick={() => pomeriZaposlenog(zap.id, 'up')} style={{color: C.accent, fontSize: "14px"}}>▲</button>
+                                                            <button className="zap-action-btn" disabled={i === zaposleni.length - 1} onClick={() => pomeriZaposlenog(zap.id, 'down')} style={{color: C.accent, fontSize: "14px"}}>▼</button>
+                                                        </div>
+                                                        {isEditing ? (
+                                                            <input style={{...s.inp, padding: "8px", fontSize: "14px", flex: 1}} value={editingZapIme} autoFocus onChange={e => setEditingZapIme(e.target.value)} onBlur={() => sacuvajIme(zap.id, editingZapIme)} onKeyDown={e => { if (e.key === 'Enter') sacuvajIme(zap.id, editingZapIme); if (e.key === 'Escape') setEditingZapId(null); }} />
+                                                        ) : (
+                                                            <span style={{color: C.text, fontSize: "16px", fontWeight: "bold", flex: 1}} onClick={() => { setEditingZapId(zap.id); setEditingZapIme(zap.ime); }}>{zap.ime}</span>
+                                                        )}
+                                                        <button style={{background: "rgba(255, 123, 140, 0.15)", border: `1px solid ${C.red}`, color: C.red, cursor: "pointer", fontSize: "14px", borderRadius: "6px", width: "36px", height: "36px"}} onClick={() => obrisiZaposlenog(zap.id, zap.ime)}>❌</button>
+                                                    </div>
+                                                    
+                                                    {/* Sumarno */}
+                                                    <div style={{padding: "10px 0", borderTop: `1px solid ${C.border}`, borderBottom: `1px solid ${C.border}`, marginBottom: "10px"}}>
+                                                        <div className="mobile-card-row">
+                                                            <span className="mobile-card-label">Mesečno ukupno:</span>
+                                                            <span className="mobile-card-value" style={{color: C.accent}}>
+                                                                {tE > 0 && `${fmt(tE)} €`}
+                                                                {tE > 0 && tR > 0 && " + "}
+                                                                {tR > 0 && <span style={{color: C.modra}}>{fmt(tR)} din</span>}
+                                                                {tE === 0 && tR === 0 && "—"}
+                                                            </span>
+                                                        </div>
+                                                        <div className="mobile-card-row">
+                                                            <span className="mobile-card-label">Godišnje ({bonusYear}):</span>
+                                                            <span className="mobile-card-value" style={{color: C.main}}>
+                                                                {godE > 0 && `${fmt(godE)} €`}
+                                                                {godE > 0 && godR > 0 && " + "}
+                                                                {godR > 0 && <span style={{color: C.modra}}>{fmt(godR)} din</span>}
+                                                                {godE === 0 && godR === 0 && "—"}
+                                                            </span>
+                                                        </div>
+                                                        <div className="mobile-card-row">
+                                                            <span className="mobile-card-label">Prošla ({bonusYear - 1}):</span>
+                                                            <span className="mobile-card-value" style={{color: C.muted}}>
+                                                                {proslaE > 0 && `${fmt(proslaE)} €`}
+                                                                {proslaE > 0 && proslaR > 0 && " + "}
+                                                                {proslaR > 0 && <span>{fmt(proslaR)} din</span>}
+                                                                {proslaE === 0 && proslaR === 0 && "—"}
+                                                            </span>
+                                                        </div>
+                                                        {(godE > 0 || proslaE > 0) && (
+                                                            <div className="mobile-card-row">
+                                                                <span className="mobile-card-label">Trend EUR:</span>
+                                                                <span style={{color: trendBojaE, fontWeight: "bold", fontSize: "13px"}}>{trendIkonaE} {Math.abs(razE).toFixed(0)}€ ({procE > 0 ? '+' : ''}{procE}%)</span>
+                                                            </div>
+                                                        )}
+                                                    </div>
+                                                    
+                                                    {/* Toggle za nedelje */}
+                                                    <button style={{...s.btn(true, C.bgCard), width: "100%", padding: "10px"}} onClick={() => setExpandedZapId(isExpanded ? null : zap.id)}>
+                                                        {isExpanded ? '▲ Sakrij nedelje' : '▼ Prikaži/uredi nedelje'}
+                                                    </button>
+                                                    
+                                                    {/* Nedeljni unosi (collapsed po default-u) */}
+                                                    {isExpanded && (
+                                                        <div style={{marginTop: "12px", display: "flex", flexDirection: "column", gap: "10px"}}>
+                                                            {[1,2,3,4,5].map(w => {
+                                                                const valE = w === 1 ? w1e : (c[`w${w}e`] || "");
+                                                                const valR = w === 1 ? w1r : (c[`w${w}r`] || "");
+                                                                return (
+                                                                    <div key={w} style={{padding: "10px", background: "rgba(0,0,0,0.2)", borderRadius: "8px"}}>
+                                                                        <div style={{color: C.accent, fontSize: "11px", marginBottom: "6px", textTransform: "uppercase"}}>
+                                                                            Nedelja {w} <span style={{color: C.muted, fontWeight: "normal"}}>({nedeljeDatumi[w-1]})</span>
+                                                                        </div>
+                                                                        <div style={{display: "grid", gridTemplateColumns: "1fr 1fr", gap: "8px"}}>
+                                                                            <input style={{...s.inp, padding: "10px", textAlign: "center"}} type="number" placeholder="EUR (€)" value={valE} onChange={e => updateNedeljaMobile(w, 'EUR', e.target.value)} />
+                                                                            <input style={{...s.inp, padding: "10px", textAlign: "center"}} type="number" placeholder="RSD (din)" value={valR} onChange={e => updateNedeljaMobile(w, 'RSD', e.target.value)} />
+                                                                        </div>
+                                                                    </div>
+                                                                );
+                                                            })}
+                                                        </div>
+                                                    )}
+                                                </div>
+                                            );
+                                        })}
+                                    </div>
+                                ) : (
                                 <table style={{width: "100%", borderCollapse: "collapse", minWidth: "1100px"}}>
                                     <thead>
                                         <tr style={{color: C.muted, fontSize: "10px", borderBottom: `1px solid ${C.border}`}}>
@@ -811,7 +1092,8 @@
                                         })}
                                     </tbody>
                                 </table>
-                                <button style={{...s.btn(true, C.accent), marginTop: "15px", width: "100%", padding:"12px"}} onClick={() => sacuvajBonuse(bonusi[`${bonusYear}-${bonusMonth}`] || [])}>SAČUVAJ NEDELJNI PLATNI SPISAK ZA {MONTHS_SHORT[bonusMonth].toUpperCase()}</button>
+                                )}
+                                <button style={{...s.btn(true, C.accent), marginTop: "15px", width: "100%", padding:"12px"}} onClick={() => sacuvajBonuse(bonusi[`${bonusYear}-${bonusMonth}`] || {})}>SAČUVAJ NEDELJNI PLATNI SPISAK ZA {MONTHS_SHORT[bonusMonth].toUpperCase()}</button>
                             </div>
                         )}
 
@@ -838,6 +1120,81 @@
 
                                 <div style={{...s.card, overflowX: "auto", marginBottom: "25px"}}>
                                     <h3 style={{color: C.text, marginTop: 0}}>Mesečni presek poslovanja</h3>
+                                    {isMobile ? (
+                                        <div>
+                                            {MONTHS_SHORT.map((m, i) => {
+                                                const curr = getStats(filterYear, i);
+                                                const prev = getStats(filterYear - 1, i);
+                                                const hasData = curr.promEUR > 0 || curr.promRSD > 0 || curr.trosE > 0 || curr.trosRSD > 0 || curr.bonE > 0 || curr.bonRSD > 0;
+                                                if (!hasData) return null;
+                                                return (
+                                                    <div key={i} className="mobile-card">
+                                                        <div style={{color: C.accent, fontWeight: "bold", fontSize: "16px", marginBottom: "10px", paddingBottom: "8px", borderBottom: `1px solid ${C.border}`}}>{m} {filterYear}</div>
+                                                        <div className="mobile-card-row">
+                                                            <span className="mobile-card-label">Bruto promet:</span>
+                                                            <span className="mobile-card-value">{fmt(curr.promEUR)} € <span style={{color: C.modra, fontSize: "11px"}}>/ {fmt(curr.promRSD)} din</span></span>
+                                                        </div>
+                                                        <div className="mobile-card-row">
+                                                            <span className="mobile-card-label">Fiskalna kasa:</span>
+                                                            <span className="mobile-card-value" style={{color: C.muted}}>{fmt(curr.kasaEUR)} € / {fmt(curr.kasaRSD)} din</span>
+                                                        </div>
+                                                        <div className="mobile-card-row">
+                                                            <span className="mobile-card-label">Keš majstora:</span>
+                                                            <span className="mobile-card-value" style={{color: C.accent}}>{fmt(curr.kesEUR)} € / {fmt(curr.kesRSD)} din</span>
+                                                        </div>
+                                                        <div className="mobile-card-row klikabilna-celija" onClick={() => setDetaljiModal({ tip: 'trosak', mesec: i, nazivMeseca: m })} style={{cursor: "pointer"}}>
+                                                            <span className="mobile-card-label">Troškovi 🔍:</span>
+                                                            <span className="mobile-card-value">{fmt(curr.trosE)} € / {fmt(curr.trosRSD)} din</span>
+                                                        </div>
+                                                        <div className="mobile-card-row klikabilna-celija" onClick={() => setDetaljiModal({ tip: 'bonus', mesec: i, nazivMeseca: m })} style={{cursor: "pointer"}}>
+                                                            <span className="mobile-card-label">Bonusi 🔍:</span>
+                                                            <span className="mobile-card-value">{fmt(curr.bonE)} € / {fmt(curr.bonRSD)} din</span>
+                                                        </div>
+                                                        <div className="mobile-card-row" style={{paddingTop: "10px", marginTop: "8px", borderTop: `1px solid ${C.border}`}}>
+                                                            <span className="mobile-card-label" style={{color: C.accent, fontWeight: "bold"}}>NETO EUR:</span>
+                                                            <span style={{color: C.accent, fontWeight: "bold", fontSize: "14px"}}>{fmt(curr.kristalE)} €</span>
+                                                        </div>
+                                                        <div style={{fontSize: "10px", color: C.muted, textAlign: "right"}}>(prošla: {fmt(prev.kristalE)} €)</div>
+                                                        <div className="mobile-card-row">
+                                                            <span className="mobile-card-label" style={{color: C.modra, fontWeight: "bold"}}>NETO RSD:</span>
+                                                            <span style={{color: C.modra, fontWeight: "bold", fontSize: "14px"}}>{fmt(curr.kristalRSD)} din</span>
+                                                        </div>
+                                                        <div style={{fontSize: "10px", color: C.muted, textAlign: "right"}}>(prošla: {fmt(prev.kristalRSD)} din)</div>
+                                                    </div>
+                                                );
+                                            })}
+                                            {/* UKUPNO ZA GODINU kartica */}
+                                            <div className="mobile-card" style={{borderTop: `2px solid ${C.accent}`, background: "rgba(0, 200, 245, 0.05)"}}>
+                                                <div style={{color: C.accent, fontWeight: "bold", fontSize: "16px", marginBottom: "10px"}}>UKUPNO ZA {filterYear}</div>
+                                                <div className="mobile-card-row">
+                                                    <span className="mobile-card-label">Bruto promet:</span>
+                                                    <span className="mobile-card-value">{fmt(sumPromE)} € / <span style={{color: C.modra, fontSize: "11px"}}>{fmt(sumPromR)} din</span></span>
+                                                </div>
+                                                <div className="mobile-card-row">
+                                                    <span className="mobile-card-label">Keš majstora:</span>
+                                                    <span className="mobile-card-value" style={{color: C.accent}}>{fmt(sumKesE)} € / {fmt(sumKesR)} din</span>
+                                                </div>
+                                                <div className="mobile-card-row">
+                                                    <span className="mobile-card-label">Troškovi:</span>
+                                                    <span className="mobile-card-value">{fmt(sumTrosE)} € / {fmt(sumTrosR)} din</span>
+                                                </div>
+                                                <div className="mobile-card-row">
+                                                    <span className="mobile-card-label">Bonusi:</span>
+                                                    <span className="mobile-card-value">{fmt(sumBonE)} € / {fmt(sumBonR)} din</span>
+                                                </div>
+                                                <div className="mobile-card-row" style={{paddingTop: "10px", marginTop: "8px", borderTop: `1px solid ${C.border}`}}>
+                                                    <span className="mobile-card-label" style={{color: C.accent, fontWeight: "bold"}}>NETO EUR:</span>
+                                                    <span style={{color: C.accent, fontWeight: "bold", fontSize: "16px"}}>{fmt(sumNetoE)} €</span>
+                                                </div>
+                                                <div style={{fontSize: "10px", color: C.muted, textAlign: "right"}}>(prošla: {fmt(sumPrevNetoE)} €)</div>
+                                                <div className="mobile-card-row">
+                                                    <span className="mobile-card-label" style={{color: C.modra, fontWeight: "bold"}}>NETO RSD:</span>
+                                                    <span style={{color: C.modra, fontWeight: "bold", fontSize: "16px"}}>{fmt(sumNetoR)} din</span>
+                                                </div>
+                                                <div style={{fontSize: "10px", color: C.muted, textAlign: "right"}}>(prošla: {fmt(sumPrevNetoR)} din)</div>
+                                            </div>
+                                        </div>
+                                    ) : (
                                     <table style={{width: "100%", borderCollapse: "collapse", fontSize: "12px", minWidth: "950px"}}>
                                         <thead>
                                             <tr style={{color: C.muted, textTransform: "uppercase", borderBottom: `1px solid ${C.border}`, fontSize: "10px"}}>
@@ -923,9 +1280,10 @@
                                             </tr>
                                         </tbody>
                                     </table>
+                                    )}
                                 </div>
 
-                                <div style={{display: "grid", gridTemplateColumns: "1fr 1fr", gap: "15px", marginBottom: "25px"}}>
+                                <div style={{display: "grid", gridTemplateColumns: isMobile ? "1fr" : "1fr 1fr", gap: "15px", marginBottom: "25px"}}>
                                     <div style={s.card}>
                                         <h4 style={{color: C.muted, margin: "0 0 15px 0", fontSize: "13px", textAlign: "center"}}>Finansijski Trend (EUR)</h4>
                                         <MultiBarChart netoColor={C.accent} data={MONTHS_SHORT.map((m, i) => { const curr = getStats(filterYear, i); return { label: m, bars: [{val: curr.promEUR, color: "#ffffff", tooltip: "Bruto Promet"}, {val: curr.kasaEUR, color: "#b8b8cc", tooltip: "Fiskalna Kasa"}, {val: curr.trosE + curr.bonE, color: C.red, tooltip: "Troškovi + Bonusi"}, {val: curr.kristalE, color: C.accent, tooltip: "Kristalni Neto"}] } })} />

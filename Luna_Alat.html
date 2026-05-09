@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Luna Cerade - Interni Alat v5.7.1</title>
+    <title>Luna Cerade - Interni Alat v5.7.2</title>
     <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
     <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
     <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
@@ -27,10 +27,6 @@
         .mobile-card-row { display: flex; justify-content: space-between; padding: 4px 0; font-size: 13px; }
         .mobile-card-label { color: #b8b8cc; font-size: 11px; text-transform: uppercase; letter-spacing: 1px; }
         .mobile-card-value { color: #ffffff; font-weight: 600; }
-        .hamburger-menu { display: none; position: fixed; top: 0; right: -100%; width: 75%; max-width: 280px; height: 100vh; background: #100b2e; padding: 70px 20px 20px; box-shadow: -4px 0 20px rgba(0,0,0,0.5); z-index: 200; transition: right 0.3s ease; }
-        .hamburger-menu.open { right: 0; }
-        .hamburger-overlay { display: none; position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.6); z-index: 199; }
-        .hamburger-overlay.open { display: block; }
         
         @media (max-width: 768px) {
             .desktop-only { display: none !important; }
@@ -547,7 +543,7 @@
                     <div style={s.top}>
                         <div style={{fontWeight: 800, color: C.text, fontSize: "18px", display: "flex", alignItems: "center"}}>
                             <img src="https://lunacerade.rs/wp-content/uploads/2023/05/logo-luna-cerade.png" alt="" style={{height: "26px", marginRight: "10px"}} onError={(e) => e.target.style.display='none'} />
-                            Interni Alat <span style={{color: C.accent, fontSize: "11px", marginLeft: "6px"}}>v5.7.1</span>
+                            Interni Alat <span style={{color: C.accent, fontSize: "11px", marginLeft: "6px"}}>v5.7.2</span>
                         </div>
                         {/* Desktop tabovi - prikazani samo na desktopu */}
                         {!isMobile && (
@@ -563,18 +559,46 @@
                         )}
                     </div>
 
-                    {/* Hamburger meni overlay */}
-                    <div className={`hamburger-overlay ${hamburgerOpen ? 'open' : ''}`} onClick={() => setHamburgerOpen(false)}></div>
-                    <div className={`hamburger-menu ${hamburgerOpen ? 'open' : ''}`}>
-                        <div style={{position: "absolute", top: 15, right: 15}}>
-                            <button style={{background: "transparent", border: "none", color: C.text, fontSize: "24px", cursor: "pointer"}} onClick={() => setHamburgerOpen(false)}>×</button>
+                    {/* Hamburger meni overlay - tamna pozadina kad je otvoren */}
+                    {hamburgerOpen && (
+                        <div 
+                            style={{
+                                position: 'fixed', 
+                                top: 0, 
+                                left: 0, 
+                                right: 0, 
+                                bottom: 0, 
+                                background: 'rgba(0,0,0,0.6)', 
+                                zIndex: 199
+                            }} 
+                            onClick={() => setHamburgerOpen(false)}
+                        ></div>
+                    )}
+                    {/* Hamburger meni - klizni panel sa desne strane */}
+                    {hamburgerOpen && (
+                        <div style={{
+                            position: 'fixed', 
+                            top: 0, 
+                            right: 0, 
+                            width: '75%', 
+                            maxWidth: '280px', 
+                            height: '100vh', 
+                            background: '#100b2e', 
+                            padding: '70px 20px 20px', 
+                            boxShadow: '-4px 0 20px rgba(0,0,0,0.5)', 
+                            zIndex: 200,
+                            overflowY: 'auto'
+                        }}>
+                            <div style={{position: "absolute", top: 15, right: 15}}>
+                                <button style={{background: "transparent", border: "none", color: C.text, fontSize: "28px", cursor: "pointer", padding: "5px 10px"}} onClick={() => setHamburgerOpen(false)}>×</button>
+                            </div>
+                            <div style={{display: "flex", flexDirection: "column", gap: "10px"}}>
+                                {["nalozi", "troskovi", "bonusi", "statistika"].map(t => (
+                                    <button key={t} style={{...s.btn(tab === t, C.main), padding: "14px", fontSize: "14px", textAlign: "left"}} onClick={() => { setTab(t); setHamburgerOpen(false); }}>{t.toUpperCase()}</button>
+                                ))}
+                            </div>
                         </div>
-                        <div style={{display: "flex", flexDirection: "column", gap: "10px"}}>
-                            {["nalozi", "troskovi", "bonusi", "statistika"].map(t => (
-                                <button key={t} style={{...s.btn(tab === t, C.main), padding: "14px", fontSize: "14px", textAlign: "left"}} onClick={() => { setTab(t); setHamburgerOpen(false); }}>{t.toUpperCase()}</button>
-                            ))}
-                        </div>
-                    </div>
+                    )}
 
                     <div style={{margin: "20px auto", padding: "0 20px", maxWidth: "1200px"}}>
                         

@@ -3,39 +3,24 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Luna Cerade - Interni Alat v5.2</title>
+    <title>Luna Cerade - Interni Alat v5.3</title>
     <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
     <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
     <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
     <style>
-        body { 
-            margin: 0; padding: 0; 
-            background: radial-gradient(circle at center, #2e1a4a 0%, #100b2e 70%, #08061a 100%); 
-            font-family: 'Segoe UI', system-ui, sans-serif; 
-            color: #ffffff;
-            overflow-x: hidden;
-        }
-        
+        body { margin: 0; padding: 0; background: radial-gradient(circle at center, #2e1a4a 0%, #100b2e 70%, #08061a 100%); font-family: 'Segoe UI', system-ui, sans-serif; color: #ffffff; overflow-x: hidden; }
         ::-webkit-scrollbar { width: 8px; height: 8px;}
         ::-webkit-scrollbar-track { background: transparent; }
         ::-webkit-scrollbar-thumb { background: #3c2a61; border-radius: 4px;}
         ::-webkit-scrollbar-thumb:hover { background: #5a3f8f; }
-
-        .klikabilna-celija {
-            cursor: pointer;
-            transition: all 0.2s ease;
-            position: relative;
-        }
-        .klikabilna-celija:hover {
-            background: rgba(255, 255, 255, 0.1);
-            border-radius: 6px;
-            transform: scale(1.02);
-        }
-        .ikonica-lupa {
-            font-size: 10px;
-            opacity: 0.5;
-            margin-left: 5px;
-        }
+        .klikabilna-celija { cursor: pointer; transition: all 0.2s ease; position: relative; }
+        .klikabilna-celija:hover { background: rgba(255, 255, 255, 0.1); border-radius: 6px; transform: scale(1.02); }
+        .ikonica-lupa { font-size: 10px; opacity: 0.5; margin-left: 5px; }
+        .zap-ime-edit { cursor: pointer; padding: 4px 6px; border-radius: 4px; transition: background 0.2s; }
+        .zap-ime-edit:hover { background: rgba(140, 86, 242, 0.15); }
+        .zap-action-btn { background: transparent; border: none; cursor: pointer; padding: 2px 4px; opacity: 0.6; transition: opacity 0.2s; }
+        .zap-action-btn:hover { opacity: 1; }
+        .zap-action-btn:disabled { opacity: 0.2; cursor: not-allowed; }
     </style>
 </head>
 <body>
@@ -46,11 +31,10 @@
         const API_URL = "https://luna-backend-7xe6.onrender.com/api";
 
         const MONTHS_SHORT = ["Jan","Feb","Mar","Apr","Maj","Jun","Jul","Avg","Sep","Okt","Nov","Dec"];
-        const ZAPOSLENI_INIT = ["Zaposleni 1","Zaposleni 2","Zaposleni 3","Zaposleni 4","Zaposleni 5","Zaposleni 6","Zaposleni 7","Zaposleni 8","Zaposleni 9"];
         
         const tekucaGodina = new Date().getFullYear();
         const startnaGodina = 2024;
-        const GODINE = Array.from({length: (tekucaGodina - startnaGodina) + 11}, (_, i) => startnaGodina + i);
+        const GODINE = Array.from({length: (tekucaGodina - startnaGodina) + 21}, (_, i) => startnaGodina + i);
 
         const initialItem = { opis: "", dimenzije: "", kolicina: "", jedinica: "m²", iznos: "", valuta: "EUR" };
 
@@ -137,7 +121,6 @@
             return `<!DOCTYPE html><html><head><meta charset="UTF-8"><title>Garancija ${n.broj}</title><style>body{font-family:'Segoe UI',sans-serif;padding:40px;color:#1a1a2e}.hdr{display:flex;justify-content:space-between;border-bottom:3px solid #2d6a4f;padding-bottom:20px;margin-bottom:28px}.title{font-size:26px;font-weight:800;color:#2d6a4f;letter-spacing:2px}.box{background:#f0f7f4;border-left:4px solid #2d6a4f;padding:12px 16px;border-radius:4px;margin-bottom:10px}.uslovi{border:1px solid #b7d4c8;border-radius:6px;padding:18px;font-size:11px; margin-top:20px;}</style></head><body><div class="hdr"><div>${logoHTML_PDF}<div style="font-size:11px;color:#555;margin-top:5px;">${firmaPodaci}</div></div><div style="text-align:right"><div class="title">GARANTNI LIST</div><div>Broj: <strong>${n.broj}</strong></div></div></div><div class="box"><strong>Kupac:</strong> ${n.kupac}</div><div class="box"><strong>Proizvod:</strong> ${n.stavke && n.stavke.length > 0 ? n.stavke.map(s => s.opis).join(", ") : (n.vrsta || "—")}</div><div class="box"><strong>Garancija važi do:</strong> ${kraj.toISOString().split("T")[0]}</div><div class="uslovi"><h3>USLOVI GARANCIJE</h3><ul><li>Garancija važi 2 godine na materijal i izradu.</li><li>Fizička oštećenja nastala neadekvatnim rukovanjem ne podležu garanciji.</li></ul></div></body></html>`;
         }
 
-        // NAPREDNI MULTI-BAR GRAFIKON (Sada podržava i minuse!)
         function MultiBarChart({ data, netoColor }) {
             const dataValues = data.flatMap(d => d.bars.map(b => Math.abs(b.val)));
             const hasData = dataValues.some(v => v > 0);
@@ -164,13 +147,8 @@
                                         const bgColor = isNegative ? "#e63946" : (b.val > 0 ? b.color : "transparent");
                                         return (
                                             <div key={j} style={{
-                                                width: "25%",
-                                                maxWidth: "10px",
-                                                background: bgColor,
-                                                height: `${h}%`,
-                                                borderTopLeftRadius: "2px",
-                                                borderTopRightRadius: "2px",
-                                                opacity: isNegative ? 0.9 : 1
+                                                width: "25%", maxWidth: "10px", background: bgColor, height: `${h}%`,
+                                                borderTopLeftRadius: "2px", borderTopRightRadius: "2px", opacity: isNegative ? 0.9 : 1
                                             }} title={b.tooltip + ": " + Math.round(b.val)} />
                                         )
                                     })}
@@ -204,7 +182,7 @@
             const [nalozi, setNalozi] = useState([]);
             const [troskovi, setTroskovi] = useState([]);
             const [bonusi, setBonusi] = useState({});
-            const [zaposleni, setZaposleni] = useState(ZAPOSLENI_INIT);
+            const [zaposleni, setZaposleni] = useState([]);
             const [loading, setLoading] = useState(true);
             const [saved, setSaved] = useState("");
             const [filterYear, setFilterYear] = useState(tekucaGodina);
@@ -215,25 +193,21 @@
             const [bonusMonth, setBonusMonth] = useState(new Date().getMonth());
             const [bonusYear, setBonusYear] = useState(tekucaGodina);
 
+            const [editingZapId, setEditingZapId] = useState(null);
+            const [editingZapIme, setEditingZapIme] = useState("");
+
             const fetchData = async () => {
                 setLoading(true);
                 try {
-                    const [resN, resT, resB] = await Promise.all([
-                        fetch(`${API_URL}/nalozi`),
-                        fetch(`${API_URL}/troskovi`),
-                        fetch(`${API_URL}/bonusi`)
+                    const [resN, resT, resB, resZ] = await Promise.all([
+                        fetch(`${API_URL}/nalozi`), fetch(`${API_URL}/troskovi`), fetch(`${API_URL}/bonusi`), fetch(`${API_URL}/zaposleni`)
                     ]);
-                    const nData = await resN.json();
-                    const tData = await resT.json();
-                    const bData = await resB.json();
-                    
+                    const nData = await resN.json(); const tData = await resT.json(); const bData = await resB.json(); const zData = await resZ.json();
                     setNalozi(Array.isArray(nData) ? nData : []);
                     setTroskovi(Array.isArray(tData) ? tData : []);
-                    
+                    setZaposleni(Array.isArray(zData) ? zData : []);
                     const bObj = {};
-                    if(Array.isArray(bData)) {
-                       bData.forEach(b => bObj[`${b.godina}-${b.mesec}`] = b.podaci);
-                    }
+                    if(Array.isArray(bData)) { bData.forEach(b => bObj[`${b.godina}-${b.mesec}`] = b.podaci); }
                     setBonusi(bObj);
                 } catch (e) { console.error("Greška pri učitavanju:", e); }
                 setLoading(false);
@@ -241,81 +215,46 @@
 
             useEffect(() => { fetchData(); }, []);
 
-            const flash = (msg, isError = false) => { 
-                setSaved({ msg, isError }); 
-                setTimeout(() => setSaved(""), 3000); 
-            };
-
-            const updatesNalogStavke = (index, key, value) => {
-                const noveStavke = [...form.stavke];
-                noveStavke[index] = { ...noveStavke[index], [key]: value };
-                setForm({ ...form, stavke: noveStavke });
-            };
-
-            const dodajStavkuUFormular = () => {
-                setForm({ ...form, stavke: [...form.stavke, { ...initialItem }] });
-            };
-
-            const obrisiStavkuIzFormulara = (index) => {
-                if (form.stavke.length === 1) return;
-                const noveStavke = form.stavke.filter((_, i) => i !== index);
-                setForm({ ...form, stavke: noveStavke });
-            };
+            const flash = (msg, isError = false) => { setSaved({ msg, isError }); setTimeout(() => setSaved(""), 3000); };
+            const updatesNalogStavke = (index, key, value) => { const noveStavke = [...form.stavke]; noveStavke[index] = { ...noveStavke[index], [key]: value }; setForm({ ...form, stavke: noveStavke }); };
+            const dodajStavkuUFormular = () => { setForm({ ...form, stavke: [...form.stavke, { ...initialItem }] }); };
+            const obrisiStavkuIzFormulara = (index) => { if (form.stavke.length === 1) return; const noveStavke = form.stavke.filter((_, i) => i !== index); setForm({ ...form, stavke: noveStavke }); };
 
             const sacuvajNalog = async () => {
                 if (!form.kupac) return alert("Moraš uneti kupca.");
-
-                const totalE = u_eur(form);
-                const totalR = u_rsd(form);
-                const kasaE = num(form.kasa_eur); 
-                const kasaR = num(form.kasa_rsd); 
-
                 const nForDb = { 
                     ...form,
                     broj: `NAL-${new Date().getFullYear()}-${String(nalozi.length + 1).padStart(4, "0")}`,
-                    ukupno_eur: totalE, ukupnoEUR: totalE,
-                    ukupno_rsd: totalR, ukupnoRSD: totalR,
-                    kasa_eur: kasaE, kasaEUR: kasaE, 
-                    kasa_rsd: kasaR, kasaRSD: kasaR,
-                    vrsta: form.stavke[0].opis || "—",
-                    kolicina: num(form.stavke[0].kolicina),
-                    jedinica: form.stavke[0].jedinica
+                    ukupno_rsd: u_rsd(form), ukupno_eur: u_eur(form),
+                    kasa_eur: num(form.kasa_eur), kasa_rsd: num(form.kasa_rsd),
+                    vrsta: form.stavke[0].opis || "—", kolicina: num(form.stavke[0].kolicina), jedinica: form.stavke[0].jedinica
                 };
-
                 try {
-                    const res = await fetch(`${API_URL}/nalozi`, {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify(nForDb)
-                    });
+                    const res = await fetch(`${API_URL}/nalozi`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(nForDb) });
                     if (!res.ok) throw new Error("Baza je odbila nalog.");
-                    
                     const savedN = await res.json();
-                    
-                    const optimisticN = { ...savedN, stavke: form.stavke };
-                    setNalozi([optimisticN, ...nalozi]);
-                    
+                    setNalozi([{ ...savedN, stavke: form.stavke }, ...nalozi]);
                     flash("✓ Nalog uspešno sačuvan!");
                     setForm({ ...initialForm, datum: form.datum, stavke: [{...initialItem}] });
                     setSubTab("lista"); 
                 } catch (e) { flash("Greška pri čuvanju!", true); }
             };
 
-            const obrisiNalog = (id) => {
-                if(window.confirm("Da li si siguran da želiš da obrišeš ovaj nalog? (Uskoro: trajno brisanje iz baze)")){
-                    setNalozi(nalozi.filter(n => n.id !== id));
-                    flash("Nalog je uklonjen sa ekrana.");
+            const obrisiNalog = async (id) => {
+                if(window.confirm("Da li si siguran da želiš trajno da obrišeš ovaj nalog?")){
+                    try {
+                        const res = await fetch(`${API_URL}/nalozi/${id}`, { method: 'DELETE' });
+                        if (!res.ok) throw new Error("Greška pri brisanju sa servera.");
+                        setNalozi(nalozi.filter(n => n.id !== id));
+                        flash("Nalog trajno obrisan iz baze.");
+                    } catch (e) { flash("Greška pri brisanju!", true); }
                 }
             };
 
             const sacuvajTrosak = async () => {
                 const t = { ...trosForm, iznos: num(trosForm.iznos) };
                 try {
-                    const res = await fetch(`${API_URL}/troskovi`, {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify(t)
-                    });
+                    const res = await fetch(`${API_URL}/troskovi`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(t) });
                     if (!res.ok) throw new Error("Greška");
                     const savedT = await res.json();
                     setTroskovi([savedT, ...troskovi]);
@@ -326,41 +265,108 @@
 
             const sacuvajBonuse = async (data) => {
                 try {
-                    const res = await fetch(`${API_URL}/bonusi`, {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({ godina: bonusYear, mesec: bonusMonth, podaci: data })
-                    });
+                    const res = await fetch(`${API_URL}/bonusi`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ godina: bonusYear, mesec: bonusMonth, podaci: data }) });
                     if (!res.ok) throw new Error("Greška");
-                    const newBonusi = { ...bonusi };
-                    newBonusi[`${bonusYear}-${bonusMonth}`] = data;
-                    setBonusi(newBonusi);
+                    setBonusi({ ...bonusi, [`${bonusYear}-${bonusMonth}`]: data });
                     flash("✓ Nedeljni bonusi sačuvani u bazu!");
                 } catch (e) { flash("Greška pri čuvanju bonusa!", true); }
+            };
+
+            // === FUNKCIJE ZA ZAPOSLENE ===
+
+            const sacuvajIme = async (zapId, novoIme) => {
+                if (!novoIme || !novoIme.trim()) {
+                    setEditingZapId(null);
+                    return;
+                }
+                try {
+                    const res = await fetch(`${API_URL}/zaposleni/${zapId}`, {
+                        method: 'PUT',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ ime: novoIme.trim() })
+                    });
+                    if (!res.ok) throw new Error("Greška");
+                    const updated = await res.json();
+                    setZaposleni(zaposleni.map(z => z.id === zapId ? updated : z));
+                    setEditingZapId(null);
+                    flash("✓ Ime sačuvano!");
+                } catch (e) { 
+                    flash("Greška pri čuvanju imena!", true);
+                    setEditingZapId(null);
+                }
+            };
+
+            const dodajZaposlenog = async () => {
+                const ime = window.prompt("Unesi ime novog zaposlenog:");
+                if (!ime || !ime.trim()) return;
+                try {
+                    const res = await fetch(`${API_URL}/zaposleni`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ ime: ime.trim() })
+                    });
+                    if (!res.ok) throw new Error("Greška");
+                    const novi = await res.json();
+                    setZaposleni([...zaposleni, novi]);
+                    flash("✓ Zaposleni dodat!");
+                } catch (e) { flash("Greška pri dodavanju!", true); }
+            };
+
+            const obrisiZaposlenog = async (zapId, zapIme) => {
+                if (!window.confirm(`Da li si siguran da želiš da arhiviraš zaposlenog "${zapIme}"?\n\nIstorija bonusa će ostati sačuvana, ali se neće više pojavljivati u tabeli.`)) return;
+                try {
+                    const res = await fetch(`${API_URL}/zaposleni/${zapId}`, { method: 'DELETE' });
+                    if (!res.ok) throw new Error("Greška");
+                    setZaposleni(zaposleni.filter(z => z.id !== zapId));
+                    flash("✓ Zaposleni arhiviran!");
+                } catch (e) { flash("Greška pri brisanju!", true); }
+            };
+
+            const pomeriZaposlenog = async (zapId, smer) => {
+                const idx = zaposleni.findIndex(z => z.id === zapId);
+                if (idx === -1) return;
+                const noviIdx = smer === 'up' ? idx - 1 : idx + 1;
+                if (noviIdx < 0 || noviIdx >= zaposleni.length) return;
+                
+                const drugi = zaposleni[noviIdx];
+                
+                try {
+                    const res = await fetch(`${API_URL}/zaposleni/${zapId}/redni_broj`, {
+                        method: 'PUT',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ novi_redni_broj: drugi.redni_broj })
+                    });
+                    if (!res.ok) throw new Error("Greška");
+                    
+                    const noviZap = [...zaposleni];
+                    [noviZap[idx], noviZap[noviIdx]] = [noviZap[noviIdx], noviZap[idx]];
+                    const tempBroj = noviZap[idx].redni_broj;
+                    noviZap[idx] = { ...noviZap[idx], redni_broj: noviZap[noviIdx].redni_broj };
+                    noviZap[noviIdx] = { ...noviZap[noviIdx], redni_broj: tempBroj };
+                    setZaposleni(noviZap);
+                    flash("✓ Redosled promenjen!");
+                } catch (e) { flash("Greška pri promeni redosleda!", true); }
             };
 
             const uMesecuZap = (bArr, zapIndex, valuta) => {
                 if (!bArr || !bArr[zapIndex]) return 0;
                 const c = bArr[zapIndex];
-                if (valuta === 'eur') {
-                    return num(c.w1e !== undefined ? c.w1e : c.eur) + num(c.w2e) + num(c.w3e) + num(c.w4e) + num(c.w5e);
-                } else {
-                    return num(c.w1r !== undefined ? c.w1r : c.rsd) + num(c.w2r) + num(c.w3r) + num(c.w4r) + num(c.w5r);
+                if (valuta === 'eur') return num(c.w1e !== undefined ? c.w1e : c.eur) + num(c.w2e) + num(c.w3e) + num(c.w4e) + num(c.w5e);
+                else return num(c.w1r !== undefined ? c.w1r : c.rsd) + num(c.w2r) + num(c.w3r) + num(c.w4r) + num(c.w5r);
+            };
+
+            const godisnjiUkupnoZap = (godina, zapIndex, valuta) => {
+                let total = 0;
+                for (let m = 0; m < 12; m++) {
+                    total += uMesecuZap(bonusi[`${godina}-${m}`], zapIndex, valuta);
                 }
+                return total;
             };
 
             const getStats = (year, month = null) => {
                 try {
-                    const ns = nalozi.filter(n => {
-                        if(!n || !n.datum) return false;
-                        const d = new Date(n.datum);
-                        return !isNaN(d.getFullYear()) && d.getFullYear() === year && (month === null || d.getMonth() === month);
-                    });
-                    const ts = troskovi.filter(t => {
-                        if(!t || !t.datum) return false;
-                        const d = new Date(t.datum);
-                        return !isNaN(d.getFullYear()) && d.getFullYear() === year && (month === null || d.getMonth() === month);
-                    });
+                    const ns = nalozi.filter(n => { if(!n || !n.datum) return false; const d = new Date(n.datum); return !isNaN(d.getFullYear()) && d.getFullYear() === year && (month === null || d.getMonth() === month); });
+                    const ts = troskovi.filter(t => { if(!t || !t.datum) return false; const d = new Date(t.datum); return !isNaN(d.getFullYear()) && d.getFullYear() === year && (month === null || d.getMonth() === month); });
 
                     const promEUR = ns.reduce((s, n) => s + u_eur(n), 0);
                     const kasaEUR = ns.reduce((s, n) => s + k_eur(n), 0);
@@ -373,24 +379,15 @@
                     const trosRSD = ts.filter(t => t.valuta === "RSD").reduce((s, t) => s + num(t.iznos), 0);
 
                     let bonE = 0; let bonRSD = 0;
+                    const brojZap = Math.max(zaposleni.length, 9);
                     if (month !== null) {
                         const bArr = bonusi[`${year}-${month}`];
-                        if (Array.isArray(bArr)) {
-                            for(let i=0; i<9; i++) {
-                                bonE += uMesecuZap(bArr, i, 'eur');
-                                bonRSD += uMesecuZap(bArr, i, 'rsd');
-                            }
-                        }
+                        if (Array.isArray(bArr)) { for(let i=0; i<brojZap; i++) { bonE += uMesecuZap(bArr, i, 'eur'); bonRSD += uMesecuZap(bArr, i, 'rsd'); } }
                     } else {
                         Object.keys(bonusi).forEach(k => { 
                             if(k.startsWith(`${year}-`)) {
                                 const bArr = bonusi[k];
-                                if (Array.isArray(bArr)) {
-                                    for(let i=0; i<9; i++) {
-                                        bonE += uMesecuZap(bArr, i, 'eur');
-                                        bonRSD += uMesecuZap(bArr, i, 'rsd');
-                                    }
-                                }
+                                if (Array.isArray(bArr)) { for(let i=0; i<brojZap; i++) { bonE += uMesecuZap(bArr, i, 'eur'); bonRSD += uMesecuZap(bArr, i, 'rsd'); } }
                             }
                         });
                     }
@@ -406,9 +403,7 @@
 
             const calcGodisnjiBonusZap = (godina, empIndex, valuta) => {
                 let total = 0;
-                for(let m=0; m<12; m++) {
-                    total += uMesecuZap(bonusi[`${godina}-${m}`], empIndex, valuta);
-                }
+                for(let m=0; m<12; m++) total += uMesecuZap(bonusi[`${godina}-${m}`], empIndex, valuta);
                 return total;
             };
 
@@ -417,21 +412,16 @@
             const st = tab === "statistika" ? getStats(filterYear) : null;
             const nedeljeDatumi = dobijDatumeNedelja(bonusYear, bonusMonth);
 
-            // LOGIKA ZA TOTAL SUMU (Godišnje)
             let sumPromE = 0, sumPromR = 0, sumKasaE = 0, sumKasaR = 0, sumKesE = 0, sumKesR = 0;
             let sumTrosE = 0, sumTrosR = 0, sumBonE = 0, sumBonR = 0;
             let sumNetoE = 0, sumNetoR = 0, sumPrevNetoE = 0, sumPrevNetoR = 0;
 
             if (st) {
                 MONTHS_SHORT.forEach((m, i) => {
-                    const c = getStats(filterYear, i);
-                    const p = getStats(filterYear - 1, i);
-                    sumPromE += c.promEUR; sumPromR += c.promRSD;
-                    sumKasaE += c.kasaEUR; sumKasaR += c.kasaRSD;
-                    sumKesE += c.kesEUR; sumKesR += c.kesRSD;
-                    sumTrosE += c.trosE; sumTrosR += c.trosRSD;
-                    sumBonE += c.bonE; sumBonR += c.bonRSD;
-                    sumNetoE += c.kristalE; sumNetoR += c.kristalRSD;
+                    const c = getStats(filterYear, i); const p = getStats(filterYear - 1, i);
+                    sumPromE += c.promEUR; sumPromR += c.promRSD; sumKasaE += c.kasaEUR; sumKasaR += c.kasaRSD;
+                    sumKesE += c.kesEUR; sumKesR += c.kesRSD; sumTrosE += c.trosE; sumTrosR += c.trosRSD;
+                    sumBonE += c.bonE; sumBonR += c.bonRSD; sumNetoE += c.kristalE; sumNetoR += c.kristalRSD;
                     sumPrevNetoE += p.kristalE; sumPrevNetoR += p.kristalRSD;
                 });
             }
@@ -441,7 +431,7 @@
                     <div style={s.top}>
                         <div style={{fontWeight: 800, color: C.text, fontSize: "18px", display: "flex", alignItems: "center"}}>
                             <img src="https://lunacerade.rs/wp-content/uploads/2023/05/logo-luna-cerade.png" alt="" style={{height: "26px", marginRight: "10px"}} onError={(e) => e.target.style.display='none'} />
-                            Interni Alat <span style={{color: C.accent, fontSize: "11px", marginLeft: "6px"}}>v5.2</span>
+                            Interni Alat <span style={{color: C.accent, fontSize: "11px", marginLeft: "6px"}}>v5.3</span>
                         </div>
                         <div style={{display: "flex", gap: "6px"}}>
                             {["nalozi", "troskovi", "bonusi", "statistika"].map(t => (
@@ -597,18 +587,19 @@
 
                         {tab === "bonusi" && (
                             <div style={{...s.card, overflowX: "auto"}}>
-                                <div style={{display: "flex", gap: "10px", marginBottom: "15px"}}>
+                                <div style={{display: "flex", gap: "10px", marginBottom: "15px", alignItems: "center"}}>
                                     <select style={{...s.inp, width:"auto"}} value={bonusMonth} onChange={e => setBonusMonth(+e.target.value)}>
                                         {MONTHS_SHORT.map((m, i) => <option key={i} value={i}>{m}</option>)}
                                     </select>
                                     <select style={{...s.inp, width:"auto"}} value={bonusYear} onChange={e => setBonusYear(+e.target.value)}>
                                         {GODINE.map(g => <option key={g} value={g}>{g}</option>)}
                                     </select>
+                                    <button style={{...s.btn(true, C.teal), marginLeft: "auto"}} onClick={dodajZaposlenog}>➕ Dodaj zaposlenog</button>
                                 </div>
-                                <table style={{width: "100%", borderCollapse: "collapse", minWidth: "950px"}}>
+                                <table style={{width: "100%", borderCollapse: "collapse", minWidth: "1100px"}}>
                                     <thead>
                                         <tr style={{color: C.muted, fontSize: "10px", borderBottom: `1px solid ${C.border}`}}>
-                                            <th style={{padding:"8px", textAlign:"left"}}>ZAPOSLENI</th>
+                                            <th style={{padding:"8px", textAlign:"left", minWidth: "200px"}}>ZAPOSLENI</th>
                                             {[1,2,3,4,5].map((w, index) => (
                                                 <th key={w} style={{padding:"8px", textAlign:"center"}}>
                                                     NEDELJA {w}<br/>
@@ -617,10 +608,13 @@
                                                 </th>
                                             ))}
                                             <th style={{padding:"8px", textAlign:"right", color: C.accent}}>MESEČNO UKUPNO</th>
+                                            <th style={{padding:"8px", textAlign:"right", color: C.main}}>GODIŠNJE UKUPNO<br/><span style={{fontSize:"9px", fontWeight:"normal"}}>({bonusYear})</span></th>
                                         </tr>
                                     </thead>
                                     <tbody>
-                                        {zaposleni.map((zap, i) => {
+                                        {zaposleni.length === 0 ? (
+                                            <tr><td colSpan="8" style={{padding: "30px", textAlign: "center", color: C.muted, fontStyle: "italic"}}>Nema zaposlenih. Klikni "Dodaj zaposlenog" gore.</td></tr>
+                                        ) : zaposleni.map((zap, i) => {
                                             const c = (bonusi[`${bonusYear}-${bonusMonth}`] || [])[i] || {};
                                             const w1e = c.w1e !== undefined ? c.w1e : (c.eur || "");
                                             const w1r = c.w1r !== undefined ? c.w1r : (c.rsd || "");
@@ -628,8 +622,12 @@
                                             const tE = num(w1e) + num(c.w2e) + num(c.w3e) + num(c.w4e) + num(c.w5e);
                                             const tR = num(w1r) + num(c.w2r) + num(c.w3r) + num(c.w4r) + num(c.w5r);
                                             
+                                            const godE = godisnjiUkupnoZap(bonusYear, i, 'eur');
+                                            const godR = godisnjiUkupnoZap(bonusYear, i, 'rsd');
+                                            
                                             const updateNedelja = (nedelja, valuta, val) => {
-                                                const newData = [...(bonusi[`${bonusYear}-${bonusMonth}`] || Array(9).fill({}))];
+                                                const newData = [...(bonusi[`${bonusYear}-${bonusMonth}`] || Array(zaposleni.length).fill({}))];
+                                                while (newData.length < zaposleni.length) newData.push({});
                                                 const oldObj = newData[i] || {};
                                                 let newObj = { ...oldObj };
                                                 
@@ -646,9 +644,41 @@
                                                 setBonusi({ ...bonusi, [`${bonusYear}-${bonusMonth}`]: newData });
                                             };
 
+                                            const isEditing = editingZapId === zap.id;
+
                                             return (
-                                                <tr key={i} style={{borderBottom: `1px solid ${C.border}`}}>
-                                                    <td style={{padding: "8px", color: C.text, fontSize: "12px", fontWeight: "bold"}}>{zap}</td>
+                                                <tr key={zap.id} style={{borderBottom: `1px solid ${C.border}`}}>
+                                                    <td style={{padding: "8px"}}>
+                                                        <div style={{display: "flex", alignItems: "center", gap: "4px"}}>
+                                                            <div style={{display: "flex", flexDirection: "column", gap: "2px"}}>
+                                                                <button className="zap-action-btn" disabled={i === 0} onClick={() => pomeriZaposlenog(zap.id, 'up')} title="Pomeri gore" style={{color: C.accent, fontSize: "10px"}}>▲</button>
+                                                                <button className="zap-action-btn" disabled={i === zaposleni.length - 1} onClick={() => pomeriZaposlenog(zap.id, 'down')} title="Pomeri dole" style={{color: C.accent, fontSize: "10px"}}>▼</button>
+                                                            </div>
+                                                            {isEditing ? (
+                                                                <input
+                                                                    style={{...s.inp, padding: "4px 8px", fontSize: "12px", flex: 1}}
+                                                                    value={editingZapIme}
+                                                                    autoFocus
+                                                                    onChange={e => setEditingZapIme(e.target.value)}
+                                                                    onBlur={() => sacuvajIme(zap.id, editingZapIme)}
+                                                                    onKeyDown={e => {
+                                                                        if (e.key === 'Enter') sacuvajIme(zap.id, editingZapIme);
+                                                                        if (e.key === 'Escape') setEditingZapId(null);
+                                                                    }}
+                                                                />
+                                                            ) : (
+                                                                <span 
+                                                                    className="zap-ime-edit"
+                                                                    style={{color: C.text, fontSize: "12px", fontWeight: "bold", flex: 1}}
+                                                                    onClick={() => { setEditingZapId(zap.id); setEditingZapIme(zap.ime); }}
+                                                                    title="Klikni za izmenu imena"
+                                                                >
+                                                                    {zap.ime}
+                                                                </span>
+                                                            )}
+                                                            <button className="zap-action-btn" onClick={() => obrisiZaposlenog(zap.id, zap.ime)} title="Arhiviraj zaposlenog" style={{color: C.red, fontSize: "12px"}}>❌</button>
+                                                        </div>
+                                                    </td>
                                                     {[1,2,3,4,5].map(w => {
                                                         const valE = w === 1 ? w1e : (c[`w${w}e`] || "");
                                                         const valR = w === 1 ? w1r : (c[`w${w}r`] || "");
@@ -665,6 +695,11 @@
                                                         {tE > 0 && <div style={{color: C.accent, fontWeight: "bold", fontSize:"13px"}}>{fmt(tE)} €</div>}
                                                         {tR > 0 && <div style={{color: C.modra, fontSize: "11px"}}>{fmt(tR)} din</div>}
                                                         {tE === 0 && tR === 0 && <div style={{color: C.muted}}>—</div>}
+                                                    </td>
+                                                    <td style={{padding: "8px", textAlign:"right", background: "rgba(140, 86, 242, 0.05)"}}>
+                                                        {godE > 0 && <div style={{color: C.main, fontWeight: "bold", fontSize:"13px"}}>{fmt(godE)} €</div>}
+                                                        {godR > 0 && <div style={{color: C.modra, fontSize: "11px"}}>{fmt(godR)} din</div>}
+                                                        {godE === 0 && godR === 0 && <div style={{color: C.muted}}>—</div>}
                                                     </td>
                                                 </tr>
                                             )
@@ -750,7 +785,6 @@
                                                     </tr>
                                                 )
                                             })}
-                                            {/* Zbirna linija za celu godinu */}
                                             <tr style={{background: "rgba(255,255,255,0.05)", borderTop: `2px solid ${C.accent}`}}>
                                                 <td style={{padding: "15px 10px", color: C.accent, fontWeight: "bold"}}>UKUPNO<br/>ZA GODINU</td>
                                                 <td style={{padding: "15px 10px", textAlign:"right", fontWeight: "bold"}}>
@@ -789,131 +823,62 @@
                                 <div style={{display: "grid", gridTemplateColumns: "1fr 1fr", gap: "15px", marginBottom: "25px"}}>
                                     <div style={s.card}>
                                         <h4 style={{color: C.muted, margin: "0 0 15px 0", fontSize: "13px", textAlign: "center"}}>Finansijski Trend (EUR)</h4>
-                                        <MultiBarChart 
-                                            netoColor={C.accent}
-                                            data={MONTHS_SHORT.map((m, i) => {
-                                                const curr = getStats(filterYear, i);
-                                                return {
-                                                    label: m,
-                                                    bars: [
-                                                        {val: curr.promEUR, color: "#ffffff", tooltip: "Bruto Promet"},
-                                                        {val: curr.kasaEUR, color: "#b8b8cc", tooltip: "Fiskalna Kasa"},
-                                                        {val: curr.trosE + curr.bonE, color: C.red, tooltip: "Troškovi + Bonusi"},
-                                                        {val: curr.kristalE, color: C.accent, tooltip: "Kristalni Neto"}
-                                                    ]
-                                                }
-                                            })} 
-                                        />
+                                        <MultiBarChart netoColor={C.accent} data={MONTHS_SHORT.map((m, i) => { const curr = getStats(filterYear, i); return { label: m, bars: [{val: curr.promEUR, color: "#ffffff", tooltip: "Bruto Promet"}, {val: curr.kasaEUR, color: "#b8b8cc", tooltip: "Fiskalna Kasa"}, {val: curr.trosE + curr.bonE, color: C.red, tooltip: "Troškovi + Bonusi"}, {val: curr.kristalE, color: C.accent, tooltip: "Kristalni Neto"}] } })} />
                                     </div>
                                     <div style={s.card}>
                                         <h4 style={{color: C.muted, margin: "0 0 15px 0", fontSize: "13px", textAlign: "center"}}>Finansijski Trend (RSD)</h4>
-                                        <MultiBarChart 
-                                            netoColor={C.modra}
-                                            data={MONTHS_SHORT.map((m, i) => {
-                                                const curr = getStats(filterYear, i);
-                                                return {
-                                                    label: m,
-                                                    bars: [
-                                                        {val: curr.promRSD, color: "#ffffff", tooltip: "Bruto Promet"},
-                                                        {val: curr.kasaRSD, color: "#b8b8cc", tooltip: "Fiskalna Kasa"},
-                                                        {val: curr.trosRSD + curr.bonRSD, color: C.red, tooltip: "Troškovi + Bonusi"},
-                                                        {val: curr.kristalRSD, color: C.modra, tooltip: "Kristalni Neto"}
-                                                    ]
-                                                }
-                                            })} 
-                                        />
+                                        <MultiBarChart netoColor={C.modra} data={MONTHS_SHORT.map((m, i) => { const curr = getStats(filterYear, i); return { label: m, bars: [{val: curr.promRSD, color: "#ffffff", tooltip: "Bruto Promet"}, {val: curr.kasaRSD, color: "#b8b8cc", tooltip: "Fiskalna Kasa"}, {val: curr.trosRSD + curr.bonRSD, color: C.red, tooltip: "Troškovi + Bonusi"}, {val: curr.kristalRSD, color: C.modra, tooltip: "Kristalni Neto"}] } })} />
                                     </div>
                                 </div>
-
                             </div>
                         )}
-
                     </div>
 
                     {detaljiModal.tip && (
                         <div style={s.modalBg}>
                             <div style={{...s.card, width: '90%', maxWidth: '850px', maxHeight: '85vh', overflowY: 'auto', position: 'relative', background: '#110c24', border: `1px solid ${C.main}`}}>
                                 <button style={{position:'absolute', top: 15, right: 20, background: 'transparent', border: 'none', color: C.red, cursor: 'pointer', fontSize: '24px'}} onClick={() => setDetaljiModal({tip: null, mesec: null, nazivMeseca: ""})}>×</button>
-                                
                                 {detaljiModal.tip === 'trosak' && (
                                     <div>
                                         <h2 style={{color: C.text, borderBottom: `1px solid ${C.border}`, paddingBottom: '10px'}}>Detalji troškova: {detaljiModal.nazivMeseca} {filterYear}.</h2>
                                         <table style={{width: "100%", borderCollapse: "collapse", fontSize: "13px", marginTop: "15px"}}>
                                             <thead>
                                                 <tr style={{color: C.muted, textTransform: "uppercase", fontSize: "11px", borderBottom: `1px solid ${C.border}`}}>
-                                                    <th style={{padding:"10px", textAlign:"left"}}>Datum</th>
-                                                    <th style={{padding:"10px", textAlign:"left"}}>Naziv Troška</th>
-                                                    <th style={{padding:"10px", textAlign:"right"}}>Iznos</th>
+                                                    <th style={{padding:"10px", textAlign:"left"}}>Datum</th><th style={{padding:"10px", textAlign:"left"}}>Naziv Troška</th><th style={{padding:"10px", textAlign:"right"}}>Iznos</th>
                                                 </tr>
                                             </thead>
                                             <tbody>
-                                                {troskovi.filter(t => {
-                                                    const d = new Date(t.datum);
-                                                    return !isNaN(d.getFullYear()) && d.getFullYear() === filterYear && d.getMonth() === detaljiModal.mesec;
-                                                }).sort((a,b) => new Date(b.datum) - new Date(a.datum)).map((t, i) => (
+                                                {troskovi.filter(t => { const d = new Date(t.datum); return !isNaN(d.getFullYear()) && d.getFullYear() === filterYear && d.getMonth() === detaljiModal.mesec; }).sort((a,b) => new Date(b.datum) - new Date(a.datum)).map((t, i) => (
                                                     <tr key={i} style={{borderBottom: `1px solid ${C.border}`}}>
-                                                        <td style={{padding: "10px", color: C.muted}}>{t.datum}</td>
-                                                        <td style={{padding: "10px", color: C.text}}>{t.naziv}</td>
-                                                        <td style={{padding: "10px", textAlign: "right", color: t.valuta === 'EUR' ? "#c8963e" : C.modra, fontWeight: "bold"}}>{fmt(t.iznos, t.valuta)}</td>
+                                                        <td style={{padding: "10px", color: C.muted}}>{t.datum}</td><td style={{padding: "10px", color: C.text}}>{t.naziv}</td><td style={{padding: "10px", textAlign: "right", color: t.valuta === 'EUR' ? "#c8963e" : C.modra, fontWeight: "bold"}}>{fmt(t.iznos, t.valuta)}</td>
                                                     </tr>
                                                 ))}
-                                                {troskovi.filter(t => new Date(t.datum).getFullYear() === filterYear && new Date(t.datum).getMonth() === detaljiModal.mesec).length === 0 && (
-                                                    <tr><td colSpan="3" style={{padding: "20px", textAlign: "center", color: C.muted}}>Nema unetih troškova za ovaj mesec.</td></tr>
-                                                )}
+                                                {troskovi.filter(t => new Date(t.datum).getFullYear() === filterYear && new Date(t.datum).getMonth() === detaljiModal.mesec).length === 0 && ( <tr><td colSpan="3" style={{padding: "20px", textAlign: "center", color: C.muted}}>Nema unetih troškova za ovaj mesec.</td></tr> )}
                                             </tbody>
                                         </table>
                                     </div>
                                 )}
-
                                 {detaljiModal.tip === 'bonus' && (
                                     <div>
                                         <h2 style={{color: C.text, borderBottom: `1px solid ${C.border}`, paddingBottom: '10px'}}>Plate i Bonusi (Izveštaj): {detaljiModal.nazivMeseca} {filterYear}.</h2>
                                         <table style={{width: "100%", borderCollapse: "collapse", fontSize: "12px", marginTop: "15px"}}>
                                             <thead>
                                                 <tr style={{color: C.muted, textTransform: "uppercase", fontSize: "10px", borderBottom: `1px solid ${C.border}`}}>
-                                                    <th style={{padding:"10px", textAlign:"left"}}>Zaposleni</th>
-                                                    <th style={{padding:"10px", textAlign:"right", color: C.text}}>Ovaj mesec ({detaljiModal.nazivMeseca})</th>
-                                                    <th style={{padding:"10px", textAlign:"right", color: C.accent}}>Ukupno ({filterYear})</th>
-                                                    <th style={{padding:"10px", textAlign:"right", color: C.muted}}>Ukupno ({filterYear - 1})</th>
-                                                    <th style={{padding:"10px", textAlign:"right"}}>Godišnji Trend</th>
+                                                    <th style={{padding:"10px", textAlign:"left"}}>Zaposleni</th><th style={{padding:"10px", textAlign:"right", color: C.text}}>Ovaj mesec ({detaljiModal.nazivMeseca})</th><th style={{padding:"10px", textAlign:"right", color: C.accent}}>Ukupno ({filterYear})</th><th style={{padding:"10px", textAlign:"right", color: C.muted}}>Ukupno ({filterYear - 1})</th><th style={{padding:"10px", textAlign:"right"}}>Godišnji Trend</th>
                                                 </tr>
                                             </thead>
                                             <tbody>
                                                 {zaposleni.map((zap, i) => {
-                                                    const bArrMesec = bonusi[`${filterYear}-${detaljiModal.mesec}`];
-                                                    const mesecEUR = uMesecuZap(bArrMesec, i, 'eur');
-                                                    const mesecRSD = uMesecuZap(bArrMesec, i, 'rsd');
-                                                    
-                                                    const godEUR = calcGodisnjiBonusZap(filterYear, i, 'eur');
-                                                    const godRSD = calcGodisnjiBonusZap(filterYear, i, 'rsd');
-                                                    const proslaEUR = calcGodisnjiBonusZap(filterYear - 1, i, 'eur');
-                                                    const proslaRSD = calcGodisnjiBonusZap(filterYear - 1, i, 'rsd');
-
-                                                    const trendEUR = godEUR - proslaEUR;
-                                                    const trendKarakterEUR = trendEUR > 0 ? "▲" : (trendEUR < 0 ? "▼" : "—");
-                                                    const trendBojaEUR = trendEUR > 0 ? "#4a9e6e" : (trendEUR < 0 ? C.red : C.muted);
-
+                                                    const bArrMesec = bonusi[`${filterYear}-${detaljiModal.mesec}`]; const mesecEUR = uMesecuZap(bArrMesec, i, 'eur'); const mesecRSD = uMesecuZap(bArrMesec, i, 'rsd');
+                                                    const godEUR = calcGodisnjiBonusZap(filterYear, i, 'eur'); const godRSD = calcGodisnjiBonusZap(filterYear, i, 'rsd'); const proslaEUR = calcGodisnjiBonusZap(filterYear - 1, i, 'eur'); const proslaRSD = calcGodisnjiBonusZap(filterYear - 1, i, 'rsd');
+                                                    const trendEUR = godEUR - proslaEUR; const trendKarakterEUR = trendEUR > 0 ? "▲" : (trendEUR < 0 ? "▼" : "—"); const trendBojaEUR = trendEUR > 0 ? "#4a9e6e" : (trendEUR < 0 ? C.red : C.muted);
                                                     return (
-                                                        <tr key={i} style={{borderBottom: `1px solid ${C.border}`}}>
-                                                            <td style={{padding: "12px 10px", color: C.text, fontWeight: "bold"}}>{zap}</td>
-                                                            <td style={{padding: "12px 10px", textAlign:"right"}}>
-                                                                {mesecEUR > 0 && <div style={{color: C.text}}>{fmt(mesecEUR)} €</div>}
-                                                                {mesecRSD > 0 && <div style={{color: C.modra}}>{fmt(mesecRSD)} din</div>}
-                                                                {mesecEUR === 0 && mesecRSD === 0 && <div style={{color: C.muted}}>—</div>}
-                                                            </td>
-                                                            <td style={{padding: "12px 10px", textAlign:"right", background: "rgba(0,200,245,0.05)"}}>
-                                                                {godEUR > 0 && <div style={{color: C.accent, fontWeight: "bold"}}>{fmt(godEUR)} €</div>}
-                                                                {godRSD > 0 && <div style={{color: C.modra}}>{fmt(godRSD)} din</div>}
-                                                                {godEUR === 0 && godRSD === 0 && <div style={{color: C.muted}}>—</div>}
-                                                            </td>
-                                                            <td style={{padding: "12px 10px", textAlign:"right"}}>
-                                                                {proslaEUR > 0 && <div style={{color: C.muted}}>{fmt(proslaEUR)} €</div>}
-                                                                {proslaRSD > 0 && <div style={{color: C.muted}}>{fmt(proslaRSD)} din</div>}
-                                                                {proslaEUR === 0 && proslaRSD === 0 && <div style={{color: C.muted}}>—</div>}
-                                                            </td>
-                                                            <td style={{padding: "12px 10px", textAlign:"right"}}>
-                                                                <div style={{color: trendBojaEUR, fontSize: "11px"}}>{trendKarakterEUR} {Math.abs(trendEUR)} €</div>
-                                                            </td>
+                                                        <tr key={zap.id} style={{borderBottom: `1px solid ${C.border}`}}>
+                                                            <td style={{padding: "12px 10px", color: C.text, fontWeight: "bold"}}>{zap.ime}</td>
+                                                            <td style={{padding: "12px 10px", textAlign:"right"}}>{mesecEUR > 0 && <div style={{color: C.text}}>{fmt(mesecEUR)} €</div>}{mesecRSD > 0 && <div style={{color: C.modra}}>{fmt(mesecRSD)} din</div>}{mesecEUR === 0 && mesecRSD === 0 && <div style={{color: C.muted}}>—</div>}</td>
+                                                            <td style={{padding: "12px 10px", textAlign:"right", background: "rgba(0,200,245,0.05)"}}>{godEUR > 0 && <div style={{color: C.accent, fontWeight: "bold"}}>{fmt(godEUR)} €</div>}{godRSD > 0 && <div style={{color: C.modra}}>{fmt(godRSD)} din</div>}{godEUR === 0 && godRSD === 0 && <div style={{color: C.muted}}>—</div>}</td>
+                                                            <td style={{padding: "12px 10px", textAlign:"right"}}>{proslaEUR > 0 && <div style={{color: C.muted}}>{fmt(proslaEUR)} €</div>}{proslaRSD > 0 && <div style={{color: C.muted}}>{fmt(proslaRSD)} din</div>}{proslaEUR === 0 && proslaRSD === 0 && <div style={{color: C.muted}}>—</div>}</td>
+                                                            <td style={{padding: "12px 10px", textAlign:"right"}}><div style={{color: trendBojaEUR, fontSize: "11px"}}>{trendKarakterEUR} {Math.abs(trendEUR)} €</div></td>
                                                         </tr>
                                                     )
                                                 })}
@@ -924,14 +889,11 @@
                             </div>
                         </div>
                     )}
-
                     {saved && <div style={{position: "fixed", bottom: "20px", right: "20px", background: saved.isError ? C.red : C.main, padding: "10px 20px", borderRadius: "8px", color: "white", zIndex: 1000, backdropFilter: C.glass, boxShadow: "0 4px 15px rgba(0,0,0,0.2)"}}>{saved.msg}</div>}
                 </div>
             );
         }
-
-        const root = ReactDOM.createRoot(document.getElementById('root'));
-        root.render(<App />);
+        const root = ReactDOM.createRoot(document.getElementById('root')); root.render(<App />);
     </script>
 </body>
 </html>

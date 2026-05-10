@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Luna Cerade - Interni Alat v6.0</title>
+    <title>Luna Cerade - Interni Alat v6.0.2</title>
     <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
     <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
     <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
@@ -419,6 +419,7 @@
             // === MOBILNI: detekcija i hamburger meni ===
             const [isMobile, setIsMobile] = useState(typeof window !== 'undefined' && window.innerWidth <= 768);
             const [hamburgerOpen, setHamburgerOpen] = useState(false);
+            const [cuvanjeNaloga, setCuvanjeNaloga] = useState(false); // double-click protection
             const [expandedZapId, setExpandedZapId] = useState(null); // za collapse u Bonusi karticama
             
             // === Print modal (univerzalan za sve uredjaje) ===
@@ -474,49 +475,66 @@
             
             // Generise PDF blob iz HTML-a koristeci html2canvas + jsPDF
             const generisiPDFBlob = async (htmlString) => {
-                // Pravim privremen skriven div sa otpremnicom
+                // Pravim privremen skriven div sa otpremnicom - SIROK kao A4 (794px = 210mm @ 96dpi)
                 const tempDiv = document.createElement('div');
-                tempDiv.style.cssText = 'position: absolute; left: -9999px; top: 0; width: 800px; background: white;';
+                tempDiv.style.cssText = 'position: absolute; left: -9999px; top: 0; width: 794px; background: white; padding: 0; margin: 0;';
+                
                 // Strip <html><head><body> wrapper - uzmi samo body sadrzaj + style
                 const styleMatch = htmlString.match(/<style>([\s\S]*?)<\/style>/);
                 const bodyMatch = htmlString.match(/<body[^>]*>([\s\S]*?)<\/body>/);
-                tempDiv.innerHTML = (styleMatch ? `<style>${styleMatch[1]}</style>` : '') + 
+                
+                // KRITICNO: prebacim "position: fixed" vodenog ziga na "position: absolute"
+                // jer html2canvas NE renderuje fixed elemente
+                let stylSadrzaj = styleMatch ? styleMatch[1] : '';
+                stylSadrzaj = stylSadrzaj.replace(
+                    /\.vodeni-zig\s*\{[^}]*position:\s*fixed[^}]*\}/g,
+                    '.vodeni-zig { position: absolute; top: 40%; left: 50%; transform: translate(-50%, -50%) rotate(-25deg); opacity: 0.07; z-index: 1; pointer-events: none; }'
+                );
+                
+                tempDiv.innerHTML = (stylSadrzaj ? `<style>${stylSadrzaj}</style>` : '') + 
                                     (bodyMatch ? bodyMatch[1] : htmlString);
+                
+                // Postavim relative na sadrzaj-wrapper da apsolutno pozicionirani vodeni zig radi pravilno
+                const sadrzajDiv = tempDiv.querySelector('.sadrzaj') || tempDiv.firstElementChild;
+                if (sadrzajDiv) sadrzajDiv.style.position = 'relative';
+                
                 document.body.appendChild(tempDiv);
                 
                 try {
                     // Sacekaj da slike (logo) ucitaju
-                    await new Promise(resolve => setTimeout(resolve, 300));
+                    await new Promise(resolve => setTimeout(resolve, 500));
                     
                     const canvas = await html2canvas(tempDiv, {
                         scale: 2,
                         useCORS: true,
                         backgroundColor: '#ffffff',
-                        logging: false
+                        logging: false,
+                        windowWidth: 794
                     });
                     
-                    // Konvertuj u PDF (A4)
+                    // Konvertuj u PDF (A4 sa marginama 10mm)
                     const { jsPDF } = window.jspdf;
                     const pdf = new jsPDF('p', 'mm', 'a4');
-                    const imgWidth = 210; // A4 sirina mm
-                    const pageHeight = 297; // A4 visina mm
+                    const margina = 10; // 10mm margine sa svake strane
+                    const imgWidth = 210 - (margina * 2); // 190mm efektivna sirina
+                    const pageHeight = 297 - (margina * 2); // 277mm efektivna visina
                     const imgHeight = (canvas.height * imgWidth) / canvas.width;
                     
                     const imgData = canvas.toDataURL('image/jpeg', 0.92);
                     
                     if (imgHeight <= pageHeight) {
                         // Stane na jednu stranicu
-                        pdf.addImage(imgData, 'JPEG', 0, 0, imgWidth, imgHeight);
+                        pdf.addImage(imgData, 'JPEG', margina, margina, imgWidth, imgHeight);
                     } else {
                         // Treba vise stranica
                         let heightLeft = imgHeight;
-                        let position = 0;
-                        pdf.addImage(imgData, 'JPEG', 0, position, imgWidth, imgHeight);
+                        let position = margina;
+                        pdf.addImage(imgData, 'JPEG', margina, position, imgWidth, imgHeight);
                         heightLeft -= pageHeight;
                         while (heightLeft > 0) {
-                            position = heightLeft - imgHeight;
+                            position = heightLeft - imgHeight + margina;
                             pdf.addPage();
-                            pdf.addImage(imgData, 'JPEG', 0, position, imgWidth, imgHeight);
+                            pdf.addImage(imgData, 'JPEG', margina, position, imgWidth, imgHeight);
                             heightLeft -= pageHeight;
                         }
                     }
@@ -663,7 +681,10 @@
             const obrisiStavkuIzFormulara = (index) => { if (form.stavke.length === 1) return; const noveStavke = form.stavke.filter((_, i) => i !== index); setForm({ ...form, stavke: noveStavke }); };
 
             const sacuvajNalog = async () => {
+                if (cuvanjeNaloga) return; // double-click guard - ne dozvoli duple klikove
                 if (!form.kupac) return alert("Moraš uneti kupca.");
+                
+                setCuvanjeNaloga(true);
                 
                 // EDIT MODE: ako form ima id, to je izmena postojeceg
                 if (form.id) {
@@ -682,6 +703,7 @@
                         setForm({ ...initialForm, datum: form.datum, stavke: [{...initialItem}] });
                         setSubTab("lista"); 
                     } catch (e) { flash("Greška pri izmeni!", true); }
+                    setCuvanjeNaloga(false);
                     return;
                 }
                 
@@ -702,6 +724,7 @@
                     setForm({ ...initialForm, datum: form.datum, stavke: [{...initialItem}] });
                     setSubTab("lista"); 
                 } catch (e) { flash("Greška pri čuvanju!", true); }
+                setCuvanjeNaloga(false);
             };
             
             // Otvori formu sa podacima postojeceg naloga (edit mode)
@@ -945,7 +968,7 @@
                     <div style={s.top}>
                         <div style={{fontWeight: 800, color: C.text, fontSize: "18px", display: "flex", alignItems: "center"}}>
                             <img src="https://lunacerade.rs/wp-content/uploads/2023/05/logo-luna-cerade.png" alt="" style={{height: "26px", marginRight: "10px"}} onError={(e) => e.target.style.display='none'} />
-                            Interni Alat <span style={{color: C.accent, fontSize: "11px", marginLeft: "6px"}}>v6.0</span>
+                            Interni Alat <span style={{color: C.accent, fontSize: "11px", marginLeft: "6px"}}>v6.0.2</span>
                         </div>
                         {/* Desktop tabovi - prikazani samo na desktopu */}
                         {!isMobile && (
@@ -1088,7 +1111,13 @@
                                             {form.id && (
                                                 <button style={{...s.btn(false, C.bgCard), padding: "12px 20px", fontSize: "14px"}} onClick={odustaniIzmenu}>↩️ Odustani</button>
                                             )}
-                                            <button style={{...s.btn(true, C.main), flex: 1, padding: "12px", fontSize: "14px"}} onClick={sacuvajNalog}>{form.id ? "💾 SAČUVAJ IZMENE" : "🚀 SAČUVAJ NALOG U BAZU"}</button>
+                                            <button 
+                                                style={{...s.btn(true, C.main), flex: 1, padding: "12px", fontSize: "14px", opacity: cuvanjeNaloga ? 0.5 : 1, cursor: cuvanjeNaloga ? 'not-allowed' : 'pointer'}} 
+                                                onClick={sacuvajNalog} 
+                                                disabled={cuvanjeNaloga}
+                                            >
+                                                {cuvanjeNaloga ? "⏳ Snimam..." : (form.id ? "💾 SAČUVAJ IZMENE" : "🚀 SAČUVAJ NALOG U BAZU")}
+                                            </button>
                                         </div>
                                     </div>
                                 )}

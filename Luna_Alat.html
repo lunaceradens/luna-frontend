@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Luna Cerade - Interni Alat v6.0.2</title>
+    <title>Luna Statistika - v6.1.3</title>
     <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
     <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
     <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
@@ -50,6 +50,14 @@
             .responsive-cards { display: none !important; }
         }
     </style>
+    <link rel="icon" type="image/png" sizes="32x32" href="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAACAAAAAgCAYAAABzenr0AAADdklEQVR42u2WTXMTRxCG356Z/dLKSLKNrRjLjlFsSFxApZQqKiEpDsmNHHLOT8iv4JhbfgsXbjmECpXkQIwT8eEPKIMMwkZeZFkr7Wp3pnOQDSa2qRAKuKhvM4eeZ7rft6sp759lvMcQeM8xABgADABeC4AAYwmKM4q2ATAB/M4AFDhhQJyXO79/l0v/AkAENu8EQILTFGQNI7l/obX2xfFg/WTeUU8NSBJg3iYAS3CqQWo6o1a+98MdCBmedOTEnKNX+wn6VdgDIcAIggYAIjIAeO/8WgAETgGQBqk5l2/+dMobOdsNztWzI8u25wdnXCQAoEEKAHg3FwPCMCQAZmYBgAxDHqWXIwEYpBS4/ZXe+OXylJpZazS3/oz59imXTixqe8nmVNhKhsMWrwLAqI1VADzhUXUmqxYB0Edj2apnqXZl+vgCA4RDIA4FUISozK3rl7rLwSWnc3GuOJrLNB6Vc7b0A3IfEYhvxEo5SLdn3GSdADOb0euCkM56veDbQvfEJ8fotynXNObH/b9/+PzDCd9zw35XiF8W9wGbceO0fvywpFsXQimCO5n8vU79mb4Ti1hZDmWNcR6y1bkd43SUwklSJgaEMRqGpSWMoaU2L03bCbvdnltwPb288uDJN+VC80q1flEQtOYX70rXHr+8H8Iw3AAePxNyweidyeEht5hxrKH7Qb0YKZlushVExpiYZBQaMTxlx/W85FpPg6YcrEWJMU0jxWJblee9xNzdSjtXa93ZCdHdeNDFpDYs+389pAIAiEEqIau0gdFS087eK3K6NEv8mabMLQUnmpPp2BNjbSru7myonKr5hfEPRuxGmJKfGB0nUnlRZNxspOO16dGmz0ZWlLrbjIxLjQBEBGbGUQDPNUhgHZNb/nkbCFJ97WMdV1Qv9utUWFBxc5zcQk1rOFHCfjPimJjRgxjyLESGQWGYZDqd1LIkG4eg44RtwyCAeX8F6FUr2Z63GRCT3P7jU7s19vWZeVV0VenH6uavN1v05ZtOQvXKKbTrEgFO1il73hjrRunWQqXqHXtai0dKAPchCQTsqZsJ3Pfby4pnYn7x8/8E8FyYIEuAe4+1U7meetfy0P5WzBUCawbJvrv5QHLmg3f/C2B3MFkEmBVVPOcStfvdIfFWW/CvdhAA6mjOdTTn9t0NNqIBwABgAPBG8Q8JHaBHn8C6gAAAAABJRU5ErkJggg==">
+    <link rel="apple-touch-icon" sizes="180x180" href="data:image/png;base64,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">
+    <meta name="theme-color" content="#c8102e">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="Luna Statistika">
+    <meta name="application-name" content="Luna Statistika">
+    <meta name="mobile-web-app-capable" content="yes">
 </head>
 <body>
     <div id="root"></div>
@@ -341,6 +349,35 @@
             </body></html>`;
         }
 
+        // Jednostavan bar grafik za uporedni presek (1 metric kroz godine)
+        function PresekChart({ data, color, unit }) {
+            const max = Math.max(...data.map(d => Math.abs(d.val)), 1);
+            const hasData = data.some(d => d.val > 0);
+            
+            if (!hasData) return <div style={{color: "#b8b8cc", fontSize: "11px", fontStyle: "italic", height: "120px", display: "flex", alignItems: "center", justifyContent: "center"}}>Nema podataka za ovaj period.</div>;
+            
+            return (
+                <div style={{width: "100%"}}>
+                    <div style={{ display: "flex", alignItems: "flex-end", gap: 6, height: 120, borderBottom: "1px solid rgba(255,255,255,0.08)", paddingBottom: "5px" }}>
+                        {data.map((d, i) => {
+                            const h = (d.val / max) * 100;
+                            return (
+                                <div key={i} style={{ flex: 1, display: "flex", flexDirection: "column", alignItems: "center", height: "100%", justifyContent: "flex-end" }}>
+                                    {d.val > 0 && <div style={{fontSize: "9px", color: color, marginBottom: "2px", whiteSpace: "nowrap"}}>{Math.round(d.val).toLocaleString('sr-RS')}</div>}
+                                    <div style={{ width: "70%", maxWidth: "30px", background: d.val > 0 ? color : "rgba(255,255,255,0.05)", height: `${Math.max(h, 2)}%`, borderRadius: "3px 3px 0 0", transition: "height 0.3s ease" }} title={`${d.label}: ${d.val.toFixed(2)} ${unit}`}></div>
+                                </div>
+                            );
+                        })}
+                    </div>
+                    <div style={{ display: "flex", gap: 6, marginTop: "5px" }}>
+                        {data.map((d, i) => (
+                            <div key={i} style={{flex: 1, textAlign: "center", fontSize: "10px", color: "#b8b8cc", fontWeight: "600"}}>{d.label}</div>
+                        ))}
+                    </div>
+                </div>
+            );
+        }
+
         function MultiBarChart({ data, netoColor }) {
             const dataValues = data.flatMap(d => d.bars.map(b => Math.abs(b.val)));
             const hasData = dataValues.some(v => v > 0);
@@ -408,6 +445,7 @@
             const [filterYear, setFilterYear] = useState(tekucaGodina);
             
             const [detaljiModal, setDetaljiModal] = useState({ tip: null, mesec: null, nazivMeseca: "" });
+            const [presekModal, setPresekModal] = useState({ otvoren: false, mesec: 0, naziv: "", brojGodina: 11 });
 
             const [trosForm, setTrosForm] = useState({ naziv: "", iznos: "", valuta: "RSD", tip: "mesecni", datum: new Date().toISOString().split("T")[0] });
             const [bonusMonth, setBonusMonth] = useState(new Date().getMonth());
@@ -968,7 +1006,7 @@
                     <div style={s.top}>
                         <div style={{fontWeight: 800, color: C.text, fontSize: "18px", display: "flex", alignItems: "center"}}>
                             <img src="https://lunacerade.rs/wp-content/uploads/2023/05/logo-luna-cerade.png" alt="" style={{height: "26px", marginRight: "10px"}} onError={(e) => e.target.style.display='none'} />
-                            Interni Alat <span style={{color: C.accent, fontSize: "11px", marginLeft: "6px"}}>v6.0.2</span>
+                            Interni Alat <span style={{color: C.accent, fontSize: "11px", marginLeft: "6px"}}>v6.1.3</span>
                         </div>
                         {/* Desktop tabovi - prikazani samo na desktopu */}
                         {!isMobile && (
@@ -1615,7 +1653,10 @@
                                                 if (!hasData) return null;
                                                 return (
                                                     <div key={i} className="mobile-card">
-                                                        <div style={{color: C.accent, fontWeight: "bold", fontSize: "16px", marginBottom: "10px", paddingBottom: "8px", borderBottom: `1px solid ${C.border}`}}>{m} {filterYear}</div>
+                                                        <div 
+                                                            style={{color: C.accent, fontWeight: "bold", fontSize: "16px", marginBottom: "10px", paddingBottom: "8px", borderBottom: `1px solid ${C.border}`, cursor: "pointer", textDecoration: "underline", textDecorationStyle: "dotted"}}
+                                                            onClick={() => setPresekModal({otvoren: true, mesec: i, naziv: m, brojGodina: 11})}
+                                                        >{m} {filterYear} 🔍</div>
                                                         <div className="mobile-card-row">
                                                             <span className="mobile-card-label">Bruto promet:</span>
                                                             <span className="mobile-card-value">{fmt(curr.promEUR)} € <span style={{color: C.modra, fontSize: "11px"}}>/ {fmt(curr.promRSD)} din</span></span>
@@ -1702,7 +1743,11 @@
                                                 
                                                 return (
                                                     <tr key={i} style={{borderBottom: `1px solid ${C.border}`}}>
-                                                        <td style={{padding: "12px 10px", color: C.text, fontWeight: "bold"}}>{m}</td>
+                                                        <td 
+                                                            style={{padding: "12px 10px", color: C.accent, fontWeight: "bold", cursor: "pointer", textDecoration: "underline", textDecorationStyle: "dotted", textUnderlineOffset: "3px"}} 
+                                                            onClick={() => setPresekModal({otvoren: true, mesec: i, naziv: m, brojGodina: 11})}
+                                                            title="Klikni za uporedni presek kroz godine"
+                                                        >{m} 🔍</td>
                                                         <td style={{padding: "12px 10px", textAlign:"right"}}>
                                                             <div style={{color: C.text}}>{fmt(curr.promEUR)} €</div>
                                                             <div style={{color: C.modra, fontSize: "10px"}}>{fmt(curr.promRSD)} din</div>
@@ -1868,6 +1913,157 @@
                             </div>
                         </div>
                     )}
+                    {/* UPOREDNI PRESEK MODAL - klik na ime meseca */}
+                    {presekModal.otvoren && (() => {
+                        const tekucaGodina = new Date().getFullYear();
+                        const godine = [];
+                        for (let g = tekucaGodina; g >= tekucaGodina - (presekModal.brojGodina - 1); g--) godine.push(g);
+                        const podaci = godine.map(g => ({godina: g, stats: getStats(g, presekModal.mesec)}));
+                        
+                        return (
+                        <div style={{position: 'fixed', top:0, left:0, right:0, bottom:0, background: 'rgba(0,0,0,0.85)', zIndex: 2000, display: 'flex', flexDirection: 'column', backdropFilter: 'blur(5px)', overflow: 'auto'}}>
+                            {/* Header */}
+                            <div style={{display: "flex", justifyContent: "space-between", alignItems: "center", padding: "14px 20px", background: "#1a1a2e", borderBottom: `2px solid ${C.accent}`, position: "sticky", top: 0, zIndex: 10, gap: "10px", flexWrap: "wrap"}}>
+                                <div>
+                                    <div style={{fontSize: "11px", color: C.muted, textTransform: "uppercase", letterSpacing: "1px"}}>Uporedni presek</div>
+                                    <div style={{fontSize: "20px", fontWeight: "bold", color: C.accent}}>{presekModal.naziv} kroz {presekModal.brojGodina} godina</div>
+                                </div>
+                                <div style={{display: "flex", gap: "8px", alignItems: "center"}}>
+                                    <span style={{fontSize: "11px", color: C.muted}}>Period:</span>
+                                    <select 
+                                        style={{...s.inp, width: "auto", padding: "8px 10px", fontSize: "13px"}}
+                                        value={presekModal.brojGodina}
+                                        onChange={(e) => setPresekModal({...presekModal, brojGodina: parseInt(e.target.value)})}
+                                    >
+                                        <option value={5}>5 godina</option>
+                                        <option value={11}>11 godina</option>
+                                        <option value={20}>20 godina</option>
+                                    </select>
+                                    <button style={{...s.btn(false), padding: "10px 16px", fontSize: "14px"}} onClick={() => setPresekModal({otvoren: false, mesec: 0, naziv: "", brojGodina: 11})}>✕ Zatvori</button>
+                                </div>
+                            </div>
+                            
+                            {/* Sadržaj - scrollable */}
+                            <div style={{flex: 1, overflow: "auto", padding: "20px"}}>
+                                {/* TABELA */}
+                                <div style={{...s.card, marginBottom: "20px", overflowX: "auto"}}>
+                                    <h3 style={{color: C.text, marginTop: 0, fontSize: "15px"}}>📊 Tabela: {presekModal.naziv} kroz {godine.length} godina</h3>
+                                    {isMobile ? (
+                                        // Mobilni: kartice za godine
+                                        <div>
+                                            {podaci.map(p => (
+                                                <div key={p.godina} className="mobile-card">
+                                                    <div style={{color: C.accent, fontWeight: "bold", fontSize: "16px", marginBottom: "10px", paddingBottom: "6px", borderBottom: `1px solid ${C.border}`}}>{presekModal.naziv} {p.godina}</div>
+                                                    <div className="mobile-card-row">
+                                                        <span className="mobile-card-label">Bruto Promet:</span>
+                                                        <span className="mobile-card-value">{fmt(p.stats.promEUR)} € <span style={{color: C.modra, fontSize: "11px"}}>/ {fmt(p.stats.promRSD)} din</span></span>
+                                                    </div>
+                                                    <div className="mobile-card-row">
+                                                        <span className="mobile-card-label">Fiskalna Kasa:</span>
+                                                        <span className="mobile-card-value" style={{color: C.muted}}>{fmt(p.stats.kasaEUR)} € / {fmt(p.stats.kasaRSD)} din</span>
+                                                    </div>
+                                                    <div className="mobile-card-row">
+                                                        <span className="mobile-card-label" style={{color: C.accent}}>Keš Majstora:</span>
+                                                        <span className="mobile-card-value" style={{color: C.accent}}>{fmt(p.stats.kesEUR)} € / {fmt(p.stats.kesRSD)} din</span>
+                                                    </div>
+                                                    <div className="mobile-card-row">
+                                                        <span className="mobile-card-label">Troškovi:</span>
+                                                        <span className="mobile-card-value">{fmt(p.stats.trosE)} € / {fmt(p.stats.trosRSD)} din</span>
+                                                    </div>
+                                                    <div className="mobile-card-row">
+                                                        <span className="mobile-card-label">Bonusi:</span>
+                                                        <span className="mobile-card-value">{fmt(p.stats.bonE)} € / {fmt(p.stats.bonRSD)} din</span>
+                                                    </div>
+                                                    <div className="mobile-card-row" style={{paddingTop: "10px", marginTop: "8px", borderTop: `1px solid ${C.border}`}}>
+                                                        <span className="mobile-card-label" style={{color: C.accent, fontWeight: "bold"}}>NETO:</span>
+                                                        <span style={{color: C.accent, fontWeight: "bold"}}>{fmt(p.stats.kristalE)} € <span style={{color: C.modra, fontSize: "11px"}}>/ {fmt(p.stats.kristalRSD)} din</span></span>
+                                                    </div>
+                                                </div>
+                                            ))}
+                                        </div>
+                                    ) : (
+                                        // Desktop: tabela
+                                        <table style={{width: "100%", borderCollapse: "collapse", fontSize: "12px", minWidth: "900px"}}>
+                                            <thead>
+                                                <tr style={{color: C.muted, textTransform: "uppercase", borderBottom: `1px solid ${C.border}`, fontSize: "10px"}}>
+                                                    <th style={{padding:"10px", textAlign:"left"}}>GODINA</th>
+                                                    <th style={{padding:"10px", textAlign:"right"}}>BRUTO PROMET<br/>(EUR/RSD)</th>
+                                                    <th style={{padding:"10px", textAlign:"right"}}>FISKALNA KASA<br/>(EUR/RSD)</th>
+                                                    <th style={{padding:"10px", textAlign:"right", color: C.accent}}>KEŠ MAJSTORA<br/>(EUR/RSD)</th>
+                                                    <th style={{padding:"10px", textAlign:"right"}}>TROŠKOVI<br/>(EUR/RSD)</th>
+                                                    <th style={{padding:"10px", textAlign:"right"}}>BONUSI<br/>(EUR/RSD)</th>
+                                                    <th style={{padding:"10px", textAlign:"right", color: C.accent}}>NETO EUR</th>
+                                                    <th style={{padding:"10px", textAlign:"right", color: C.modra}}>NETO RSD</th>
+                                                </tr>
+                                            </thead>
+                                            <tbody>
+                                                {podaci.map((p, idx) => (
+                                                    <tr key={p.godina} style={{borderBottom: `1px solid ${C.border}`, background: idx === 0 ? "rgba(0, 200, 245, 0.05)" : "transparent"}}>
+                                                        <td style={{padding: "12px 10px", color: idx === 0 ? C.accent : C.text, fontWeight: "bold", fontSize: "14px"}}>{p.godina}</td>
+                                                        <td style={{padding: "12px 10px", textAlign:"right"}}>
+                                                            <div style={{color: C.text}}>{fmt(p.stats.promEUR)} €</div>
+                                                            <div style={{color: C.modra, fontSize: "10px"}}>{fmt(p.stats.promRSD)} din</div>
+                                                        </td>
+                                                        <td style={{padding: "12px 10px", textAlign:"right", color: C.muted}}>
+                                                            <div>{fmt(p.stats.kasaEUR)} €</div>
+                                                            <div style={{fontSize: "10px"}}>{fmt(p.stats.kasaRSD)} din</div>
+                                                        </td>
+                                                        <td style={{padding: "12px 10px", textAlign:"right", color: C.accent, fontWeight: "bold"}}>
+                                                            <div>{fmt(p.stats.kesEUR)} €</div>
+                                                            <div style={{fontSize: "10px", color: C.modra}}>{fmt(p.stats.kesRSD)} din</div>
+                                                        </td>
+                                                        <td style={{padding: "12px 10px", textAlign:"right"}}>
+                                                            <div>{fmt(p.stats.trosE)} €</div>
+                                                            <div style={{fontSize: "10px", color: C.muted}}>{fmt(p.stats.trosRSD)} din</div>
+                                                        </td>
+                                                        <td style={{padding: "12px 10px", textAlign:"right"}}>
+                                                            <div>{fmt(p.stats.bonE)} €</div>
+                                                            <div style={{fontSize: "10px", color: C.muted}}>{fmt(p.stats.bonRSD)} din</div>
+                                                        </td>
+                                                        <td style={{padding: "12px 10px", textAlign:"right", color: C.accent, fontWeight: "bold"}}>{fmt(p.stats.kristalE)} €</td>
+                                                        <td style={{padding: "12px 10px", textAlign:"right", color: C.modra, fontWeight: "bold"}}>{fmt(p.stats.kristalRSD)} din</td>
+                                                    </tr>
+                                                ))}
+                                            </tbody>
+                                        </table>
+                                    )}
+                                </div>
+                                
+                                {/* GRAFICI - 3 odvojena */}
+                                <div style={{display: "grid", gridTemplateColumns: isMobile ? "1fr" : "1fr 1fr 1fr", gap: "15px"}}>
+                                    {/* Grafik 1: Keš EUR */}
+                                    <div style={s.card}>
+                                        <h4 style={{color: C.accent, margin: "0 0 12px 0", fontSize: "12px", textAlign: "center", textTransform: "uppercase", letterSpacing: "1px"}}>📊 Keš Majstora EUR</h4>
+                                        <PresekChart 
+                                            data={podaci.map(p => ({label: String(p.godina), val: p.stats.kesEUR}))}
+                                            color={C.accent}
+                                            unit="€"
+                                        />
+                                    </div>
+                                    {/* Grafik 2: Keš RSD */}
+                                    <div style={s.card}>
+                                        <h4 style={{color: C.modra, margin: "0 0 12px 0", fontSize: "12px", textAlign: "center", textTransform: "uppercase", letterSpacing: "1px"}}>📊 Keš Majstora RSD</h4>
+                                        <PresekChart 
+                                            data={podaci.map(p => ({label: String(p.godina), val: p.stats.kesRSD}))}
+                                            color={C.modra}
+                                            unit="din"
+                                        />
+                                    </div>
+                                    {/* Grafik 3: Bonusi (oba) */}
+                                    <div style={s.card}>
+                                        <h4 style={{color: C.main, margin: "0 0 12px 0", fontSize: "12px", textAlign: "center", textTransform: "uppercase", letterSpacing: "1px"}}>📊 Bonusi (EUR + RSD)</h4>
+                                        <PresekChart 
+                                            data={podaci.map(p => ({label: String(p.godina), val: p.stats.bonE + (p.stats.bonRSD / 117)}))}
+                                            color={C.main}
+                                            unit="€ ekv."
+                                        />
+                                        <div style={{fontSize: "9px", color: C.muted, textAlign: "center", marginTop: "5px", fontStyle: "italic"}}>RSD konvertovan u EUR po 117</div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        );
+                    })()}
                     {saved && <div style={{position: "fixed", bottom: "20px", right: "20px", background: saved.isError ? C.red : C.main, padding: "10px 20px", borderRadius: "8px", color: "white", zIndex: 1000, backdropFilter: C.glass, boxShadow: "0 4px 15px rgba(0,0,0,0.2)"}}>{saved.msg}</div>}
                 </div>
             );

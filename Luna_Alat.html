@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Luna Statistika - v6.3</title>
+    <title>Luna Statistika - v6.4</title>
     <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
     <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
     <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
@@ -94,7 +94,7 @@
         }
         
         const tekucaGodina = new Date().getFullYear();
-        const startnaGodina = 2024;
+        const startnaGodina = 2016; // v6.4: prosirili smo opseg za istorijski promet
         const GODINE = Array.from({length: (tekucaGodina - startnaGodina) + 21}, (_, i) => startnaGodina + i);
 
         const initialItem = { opis: "", dimenzije: "", kolicina: "", jedinica: "m²", iznos: "", valuta: "EUR" };
@@ -565,6 +565,12 @@
             const [troskovi, setTroskovi] = useState([]);
             const [bonusi, setBonusi] = useState({});
             const [zaposleni, setZaposleni] = useState([]);
+            
+            // Istorijski podaci v6.4
+            const [istPromet, setIstPromet] = useState({}); // {2024: [{mesec: 0, bruto_eur, bruto_rsd, ...}, ...]}
+            const [istBonusi, setIstBonusi] = useState({}); // {2024: [{mesec: 0, ime, iznos_eur}, ...]}
+            const [istGodina, setIstGodina] = useState(2025);
+            const [istNoviZaposleni, setIstNoviZaposleni] = useState("");
             const [loading, setLoading] = useState(true);
             const [saved, setSaved] = useState("");
             const [filterYear, setFilterYear] = useState(tekucaGodina);
@@ -817,16 +823,35 @@
             const fetchData = async () => {
                 setLoading(true);
                 try {
-                    const [resN, resT, resB, resZ] = await Promise.all([
-                        fetch(`${API_URL}/nalozi`), fetch(`${API_URL}/troskovi`), fetch(`${API_URL}/bonusi`), fetch(`${API_URL}/zaposleni`)
+                    const [resN, resT, resB, resZ, resI] = await Promise.all([
+                        fetch(`${API_URL}/nalozi`), fetch(`${API_URL}/troskovi`), fetch(`${API_URL}/bonusi`), fetch(`${API_URL}/zaposleni`), fetch(`${API_URL}/istorija`)
                     ]);
-                    const nData = await resN.json(); const tData = await resT.json(); const bData = await resB.json(); const zData = await resZ.json();
+                    const nData = await resN.json(); const tData = await resT.json(); const bData = await resB.json(); const zData = await resZ.json(); const iData = await resI.json();
                     setNalozi(Array.isArray(nData) ? nData : []);
                     setTroskovi(Array.isArray(tData) ? tData : []);
                     setZaposleni(Array.isArray(zData) ? zData : []);
                     const bObj = {};
                     if(Array.isArray(bData)) { bData.forEach(b => bObj[`${b.godina}-${b.mesec}`] = b.podaci); }
                     setBonusi(bObj);
+                    
+                    // Istorijski podaci v6.4 - grupisani po godini
+                    const promObj = {};
+                    if (iData.promet && Array.isArray(iData.promet)) {
+                        iData.promet.forEach(p => {
+                            if (!promObj[p.godina]) promObj[p.godina] = [];
+                            promObj[p.godina].push(p);
+                        });
+                    }
+                    setIstPromet(promObj);
+                    
+                    const bonObj = {};
+                    if (iData.bonusi && Array.isArray(iData.bonusi)) {
+                        iData.bonusi.forEach(b => {
+                            if (!bonObj[b.godina]) bonObj[b.godina] = [];
+                            bonObj[b.godina].push(b);
+                        });
+                    }
+                    setIstBonusi(bonObj);
                 } catch (e) { console.error("Greška pri učitavanju:", e); }
                 setLoading(false);
             };
@@ -1033,6 +1058,141 @@
             const trosTimeoutRef = React.useRef({});
             const [autoSavingTros, setAutoSavingTros] = useState(false);
             
+            // ===== ISTORIJSKI PROMET HANDLERI v6.4 =====
+            const istPrometTimeoutRef = React.useRef({});
+            const istBonusTimeoutRef = React.useRef({});
+            const [istAutoSaving, setIstAutoSaving] = useState(false);
+            
+            // Pronadji ili kreiraj prazan red za godinu+mesec
+            const dobaviIstPromet = (godina, mesec) => {
+                const arr = istPromet[godina] || [];
+                return arr.find(p => p.mesec === mesec) || { godina, mesec, bruto_eur: 0, bruto_rsd: 0, fis_kasa_eur: 0, fis_kasa_rsd: 0, trosak_eur: 0 };
+            };
+            
+            // Lista jedinstvenih imena zaposlenih za godinu (iz bonusi + iz formi)
+            const dobaviImena = (godina) => {
+                const arr = istBonusi[godina] || [];
+                const set = new Set();
+                arr.forEach(b => set.add(b.ime));
+                return Array.from(set).sort();
+            };
+            
+            const dobaviIstBonus = (godina, mesec, ime) => {
+                const arr = istBonusi[godina] || [];
+                return arr.find(b => b.mesec === mesec && b.ime === ime) || { godina, mesec, ime, iznos_eur: 0 };
+            };
+            
+            // Excel-style edit za promet (debounce 1.5s)
+            const izmeniIstPromet = (godina, mesec, polje, vrednost) => {
+                const broj = num(vrednost);
+                
+                // Lokalno odmah
+                setIstPromet(prev => {
+                    const arr = [...(prev[godina] || [])];
+                    const idx = arr.findIndex(p => p.mesec === mesec);
+                    if (idx >= 0) {
+                        arr[idx] = { ...arr[idx], [polje]: broj };
+                    } else {
+                        const novi = { godina, mesec, bruto_eur: 0, bruto_rsd: 0, fis_kasa_eur: 0, fis_kasa_rsd: 0, trosak_eur: 0 };
+                        novi[polje] = broj;
+                        arr.push(novi);
+                    }
+                    return { ...prev, [godina]: arr };
+                });
+                
+                // Debounce backend snimanje
+                const key = `${godina}-${mesec}`;
+                if (istPrometTimeoutRef.current[key]) clearTimeout(istPrometTimeoutRef.current[key]);
+                istPrometTimeoutRef.current[key] = setTimeout(async () => {
+                    setIstAutoSaving(true);
+                    const trenutni = istPromet[godina]?.find(p => p.mesec === mesec) || { godina, mesec, bruto_eur: 0, bruto_rsd: 0, fis_kasa_eur: 0, fis_kasa_rsd: 0, trosak_eur: 0 };
+                    const update = { ...trenutni, [polje]: broj };
+                    try {
+                        const res = await fetch(`${API_URL}/istorija/promet`, {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify(update)
+                        });
+                        if (!res.ok) throw new Error("Greška");
+                    } catch (e) { flash("Greška pri snimanju!", true); }
+                    setIstAutoSaving(false);
+                }, 1500);
+            };
+            
+            // Excel-style edit za bonuse (debounce 1.5s)
+            const izmeniIstBonus = (godina, mesec, ime, vrednost) => {
+                const broj = num(vrednost);
+                
+                // Lokalno odmah
+                setIstBonusi(prev => {
+                    const arr = [...(prev[godina] || [])];
+                    const idx = arr.findIndex(b => b.mesec === mesec && b.ime === ime);
+                    if (idx >= 0) {
+                        arr[idx] = { ...arr[idx], iznos_eur: broj };
+                    } else {
+                        arr.push({ godina, mesec, ime, iznos_eur: broj });
+                    }
+                    return { ...prev, [godina]: arr };
+                });
+                
+                // Debounce backend
+                const key = `${godina}-${mesec}-${ime}`;
+                if (istBonusTimeoutRef.current[key]) clearTimeout(istBonusTimeoutRef.current[key]);
+                istBonusTimeoutRef.current[key] = setTimeout(async () => {
+                    setIstAutoSaving(true);
+                    try {
+                        const res = await fetch(`${API_URL}/istorija/bonus`, {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ godina, mesec, ime, iznos_eur: broj })
+                        });
+                        if (!res.ok) throw new Error("Greška");
+                    } catch (e) { flash("Greška pri snimanju bonusa!", true); }
+                    setIstAutoSaving(false);
+                }, 1500);
+            };
+            
+            // Dodaj novog zaposlenog za godinu (samo lokalno - postaje vidljiv kad mu se unese bonus)
+            const dodajIstZaposlenog = (godina) => {
+                const ime = istNoviZaposleni.trim();
+                if (!ime) return;
+                
+                // Provera da li vec postoji
+                const postoji = dobaviImena(godina).includes(ime);
+                if (postoji) {
+                    flash("Taj zaposleni već postoji!", true);
+                    return;
+                }
+                
+                // Dodaj prazan zapis za januar (da se prikazuje u tabeli)
+                setIstBonusi(prev => {
+                    const arr = [...(prev[godina] || [])];
+                    arr.push({ godina, mesec: 0, ime, iznos_eur: 0 });
+                    return { ...prev, [godina]: arr };
+                });
+                
+                setIstNoviZaposleni("");
+                flash(`✓ Zaposleni "${ime}" dodat za godinu ${godina}!`);
+            };
+            
+            const obrisiIstZaposlenog = async (godina, ime) => {
+                if (!confirm(`Obriši sve bonuse za "${ime}" u ${godina}. godini?`)) return;
+                
+                // Lokalno
+                setIstBonusi(prev => {
+                    const arr = (prev[godina] || []).filter(b => b.ime !== ime);
+                    return { ...prev, [godina]: arr };
+                });
+                
+                // Backend - briši za sve mesece
+                try {
+                    for (let m = 0; m < 12; m++) {
+                        await fetch(`${API_URL}/istorija/bonus/${godina}/${m}/${encodeURIComponent(ime)}`, { method: 'DELETE' });
+                    }
+                    flash(`✓ Bonusi za "${ime}" obrisani!`);
+                } catch (e) { flash("Greška pri brisanju!", true); }
+            };
+            
             const izmeniTrosakLokalno = (id, polje, vrednost) => {
                 setTroskovi(troskovi.map(t => t.id === id ? { ...t, [polje]: vrednost } : t));
                 
@@ -1176,6 +1336,34 @@
 
             const getStats = (year, month = null) => {
                 try {
+                    const tekucaGodina = new Date().getFullYear();
+                    
+                    // ISTORIJSKI MOD: za godine pre tekuce, koristi istorijski_promet + istorijski_bonusi
+                    if (year < tekucaGodina) {
+                        const istP = istPromet[year] || [];
+                        const istB = istBonusi[year] || [];
+                        
+                        // Filtriraj po mesecu ili uzmi sve mesece
+                        const promReds = month !== null ? istP.filter(p => p.mesec === month) : istP;
+                        const bonReds = month !== null ? istB.filter(b => b.mesec === month) : istB;
+                        
+                        const promEUR = promReds.reduce((s, p) => s + num(p.bruto_eur), 0);
+                        const promRSD = promReds.reduce((s, p) => s + num(p.bruto_rsd), 0);
+                        const kasaEUR = promReds.reduce((s, p) => s + num(p.fis_kasa_eur), 0);
+                        const kasaRSD = promReds.reduce((s, p) => s + num(p.fis_kasa_rsd), 0);
+                        const kesEUR = promEUR - kasaEUR;
+                        const kesRSD = promRSD - kasaRSD;
+                        const trosE = promReds.reduce((s, p) => s + num(p.trosak_eur), 0);
+                        const trosRSD = 0; // istorija nema RSD troskove
+                        const bonE = bonReds.reduce((s, b) => s + num(b.iznos_eur), 0);
+                        const bonRSD = 0; // istorija nema RSD bonuse
+                        const kristalE = kesEUR - trosE - bonE;
+                        const kristalRSD = kesRSD; // istorija: NETO RSD = Kes RSD (nema RSD trosk/bonusa)
+                        
+                        return { promEUR, kasaEUR, kesEUR, trosE, promRSD, kasaRSD, kesRSD, trosRSD, bonE, bonRSD, kristalE, kristalRSD, count: promReds.length };
+                    }
+                    
+                    // TEKUĆI MOD: koristi nalozi/troskovi/bonusi tabele (kao i pre)
                     const ns = nalozi.filter(n => { if(!n || !n.datum) return false; const d = new Date(n.datum); return !isNaN(d.getFullYear()) && d.getFullYear() === year && (month === null || d.getMonth() === month); });
                     const ts = troskovi.filter(t => { if(!t || !t.datum) return false; const d = new Date(t.datum); return !isNaN(d.getFullYear()) && d.getFullYear() === year && (month === null || d.getMonth() === month); });
 
@@ -1258,12 +1446,12 @@
                     <div style={s.top}>
                         <div style={{fontWeight: 800, color: C.text, fontSize: "18px", display: "flex", alignItems: "center"}}>
                             <img src="https://lunacerade.rs/wp-content/uploads/2023/05/logo-luna-cerade.png" alt="" style={{height: "26px", marginRight: "10px"}} onError={(e) => e.target.style.display='none'} />
-                            Interni Alat <span style={{color: C.accent, fontSize: "11px", marginLeft: "6px"}}>v6.3</span>
+                            Interni Alat <span style={{color: C.accent, fontSize: "11px", marginLeft: "6px"}}>v6.4</span>
                         </div>
                         {/* Desktop tabovi - prikazani samo na desktopu */}
                         {!isMobile && (
                             <div style={{display: "flex", gap: "6px"}}>
-                                {["nalozi", "troskovi", "bonusi", "statistika"].map(t => (
+                                {["nalozi", "troskovi", "bonusi", "istorija", "statistika"].map(t => (
                                     <button key={t} style={s.btn(tab === t, C.bgCard)} onClick={() => setTab(t)}>{t.toUpperCase()}</button>
                                 ))}
                             </div>
@@ -1308,7 +1496,7 @@
                                 <button style={{background: "transparent", border: "none", color: C.text, fontSize: "28px", cursor: "pointer", padding: "5px 10px"}} onClick={() => setHamburgerOpen(false)}>×</button>
                             </div>
                             <div style={{display: "flex", flexDirection: "column", gap: "10px"}}>
-                                {["nalozi", "troskovi", "bonusi", "statistika"].map(t => (
+                                {["nalozi", "troskovi", "bonusi", "istorija", "statistika"].map(t => (
                                     <button key={t} style={{...s.btn(tab === t, C.main), padding: "14px", fontSize: "14px", textAlign: "left"}} onClick={() => { setTab(t); setHamburgerOpen(false); }}>{t.toUpperCase()}</button>
                                 ))}
                             </div>
@@ -2058,6 +2246,214 @@
                                 <button style={{...s.btn(true, C.accent), marginTop: "15px", width: "100%", padding:"12px"}} onClick={() => sacuvajBonuse(bonusi[`${bonusYear}-${bonusMonth}`] || {})}>SAČUVAJ NEDELJNI PLATNI SPISAK ZA {MONTHS_SHORT[bonusMonth].toUpperCase()}</button>
                             </div>
                         )}
+
+                        {/* === ISTORIJA TAB v6.4 === */}
+                        {tab === "istorija" && (() => {
+                            const tekucaGodina = new Date().getFullYear();
+                            const istorijskeGodine = [];
+                            for (let g = tekucaGodina - 1; g >= 2016; g--) istorijskeGodine.push(g);
+                            const imena = dobaviImena(istGodina);
+                            
+                            // Sumarni za godinu
+                            const arrP = istPromet[istGodina] || [];
+                            const sumBrutoEUR = arrP.reduce((s, p) => s + num(p.bruto_eur), 0);
+                            const sumBrutoRSD = arrP.reduce((s, p) => s + num(p.bruto_rsd), 0);
+                            const sumFisEUR = arrP.reduce((s, p) => s + num(p.fis_kasa_eur), 0);
+                            const sumFisRSD = arrP.reduce((s, p) => s + num(p.fis_kasa_rsd), 0);
+                            const sumTrosE = arrP.reduce((s, p) => s + num(p.trosak_eur), 0);
+                            const arrB = istBonusi[istGodina] || [];
+                            const sumBonE = arrB.reduce((s, b) => s + num(b.iznos_eur), 0);
+                            const kesE = sumBrutoEUR - sumFisEUR;
+                            const kesRSD = sumBrutoRSD - sumFisRSD;
+                            const netoE = kesE - sumTrosE - sumBonE;
+                            
+                            return (
+                            <div style={{width: '100%'}}>
+                                {/* Header */}
+                                <div style={{display: "flex", gap: "10px", marginBottom: "20px", alignItems: "center", flexWrap: "wrap"}}>
+                                    <select style={{...s.inp, width: "auto"}} value={istGodina} onChange={e => setIstGodina(+e.target.value)}>
+                                        {istorijskeGodine.map(g => <option key={g} value={g}>{g}</option>)}
+                                    </select>
+                                    <span style={{color: C.muted, fontSize: "12px"}}>📜 Istorijski podaci za {istGodina}. godinu</span>
+                                    {istAutoSaving && <span style={{color: C.accent, fontSize: "11px", fontStyle: "italic"}}>💾 Auto-snimam...</span>}
+                                </div>
+                                
+                                {/* SUMARNI PROMET tabela */}
+                                <div style={{...s.card, marginBottom: "20px"}}>
+                                    <h3 style={{color: C.text, marginTop: 0, fontSize: "15px"}}>📊 Sumarni mesečni promet</h3>
+                                    <div style={{color: C.muted, fontSize: "11px", marginBottom: "12px"}}>💡 Klik u polje → izmeni → auto-snima posle 1.5s</div>
+                                    
+                                    {isMobile ? (
+                                        // MOBILNI: kartice po mesecu
+                                        <div>
+                                            {MONTHS_SHORT.map((m, mIdx) => {
+                                                const p = dobaviIstPromet(istGodina, mIdx);
+                                                return (
+                                                    <div key={mIdx} className="mobile-card">
+                                                        <div style={{color: C.accent, fontWeight: "bold", fontSize: "14px", marginBottom: "8px", paddingBottom: "6px", borderBottom: `1px solid ${C.border}`}}>{m} {istGodina}</div>
+                                                        <div className="mobile-card-row">
+                                                            <span className="mobile-card-label">Bruto EUR:</span>
+                                                            <input style={{...s.inp, padding: "6px", fontSize: "12px", width: "120px"}} type="number" value={p.bruto_eur || 0} onChange={e => izmeniIstPromet(istGodina, mIdx, 'bruto_eur', e.target.value)} />
+                                                        </div>
+                                                        <div className="mobile-card-row">
+                                                            <span className="mobile-card-label">Bruto RSD:</span>
+                                                            <input style={{...s.inp, padding: "6px", fontSize: "12px", width: "120px"}} type="number" value={p.bruto_rsd || 0} onChange={e => izmeniIstPromet(istGodina, mIdx, 'bruto_rsd', e.target.value)} />
+                                                        </div>
+                                                        <div className="mobile-card-row">
+                                                            <span className="mobile-card-label">Fis. Kasa EUR:</span>
+                                                            <input style={{...s.inp, padding: "6px", fontSize: "12px", width: "120px"}} type="number" value={p.fis_kasa_eur || 0} onChange={e => izmeniIstPromet(istGodina, mIdx, 'fis_kasa_eur', e.target.value)} />
+                                                        </div>
+                                                        <div className="mobile-card-row">
+                                                            <span className="mobile-card-label">Fis. Kasa RSD:</span>
+                                                            <input style={{...s.inp, padding: "6px", fontSize: "12px", width: "120px"}} type="number" value={p.fis_kasa_rsd || 0} onChange={e => izmeniIstPromet(istGodina, mIdx, 'fis_kasa_rsd', e.target.value)} />
+                                                        </div>
+                                                        <div className="mobile-card-row">
+                                                            <span className="mobile-card-label">Trošak EUR:</span>
+                                                            <input style={{...s.inp, padding: "6px", fontSize: "12px", width: "120px"}} type="number" value={p.trosak_eur || 0} onChange={e => izmeniIstPromet(istGodina, mIdx, 'trosak_eur', e.target.value)} />
+                                                        </div>
+                                                    </div>
+                                                );
+                                            })}
+                                        </div>
+                                    ) : (
+                                        // DESKTOP: tabela
+                                        <div style={{overflowX: "auto"}}>
+                                            <table style={{width: "100%", borderCollapse: "collapse", fontSize: "12px", minWidth: "700px"}}>
+                                                <thead>
+                                                    <tr style={{color: C.muted, textTransform: "uppercase", fontSize: "10px", borderBottom: `1px solid ${C.border}`}}>
+                                                        <th style={{padding: "10px", textAlign: "left", width: "60px"}}>MESEC</th>
+                                                        <th style={{padding: "10px", textAlign: "right"}}>BRUTO EUR</th>
+                                                        <th style={{padding: "10px", textAlign: "right"}}>BRUTO RSD</th>
+                                                        <th style={{padding: "10px", textAlign: "right"}}>FIS. KASA EUR</th>
+                                                        <th style={{padding: "10px", textAlign: "right"}}>FIS. KASA RSD</th>
+                                                        <th style={{padding: "10px", textAlign: "right"}}>TROŠAK EUR</th>
+                                                    </tr>
+                                                </thead>
+                                                <tbody>
+                                                    {MONTHS_SHORT.map((m, mIdx) => {
+                                                        const p = dobaviIstPromet(istGodina, mIdx);
+                                                        return (
+                                                            <tr key={mIdx} style={{borderBottom: `1px solid ${C.border}`}}>
+                                                                <td style={{padding: "8px", color: C.accent, fontWeight: "bold"}}>{m}</td>
+                                                                <td style={{padding: "4px"}}><input style={{...s.inp, padding: "6px", fontSize: "12px", textAlign: "right"}} type="number" value={p.bruto_eur || 0} onChange={e => izmeniIstPromet(istGodina, mIdx, 'bruto_eur', e.target.value)} /></td>
+                                                                <td style={{padding: "4px"}}><input style={{...s.inp, padding: "6px", fontSize: "12px", textAlign: "right"}} type="number" value={p.bruto_rsd || 0} onChange={e => izmeniIstPromet(istGodina, mIdx, 'bruto_rsd', e.target.value)} /></td>
+                                                                <td style={{padding: "4px"}}><input style={{...s.inp, padding: "6px", fontSize: "12px", textAlign: "right"}} type="number" value={p.fis_kasa_eur || 0} onChange={e => izmeniIstPromet(istGodina, mIdx, 'fis_kasa_eur', e.target.value)} /></td>
+                                                                <td style={{padding: "4px"}}><input style={{...s.inp, padding: "6px", fontSize: "12px", textAlign: "right"}} type="number" value={p.fis_kasa_rsd || 0} onChange={e => izmeniIstPromet(istGodina, mIdx, 'fis_kasa_rsd', e.target.value)} /></td>
+                                                                <td style={{padding: "4px"}}><input style={{...s.inp, padding: "6px", fontSize: "12px", textAlign: "right"}} type="number" value={p.trosak_eur || 0} onChange={e => izmeniIstPromet(istGodina, mIdx, 'trosak_eur', e.target.value)} /></td>
+                                                            </tr>
+                                                        );
+                                                    })}
+                                                </tbody>
+                                            </table>
+                                        </div>
+                                    )}
+                                </div>
+                                
+                                {/* BONUSI PO ZAPOSLENOM */}
+                                <div style={{...s.card, marginBottom: "20px"}}>
+                                    <h3 style={{color: C.text, marginTop: 0, fontSize: "15px"}}>👥 Bonusi po zaposlenom (samo EUR)</h3>
+                                    <div style={{color: C.muted, fontSize: "11px", marginBottom: "12px"}}>💡 Dodaj zaposlenog koji je radio u {istGodina}. → unesi bonus po mesecu → auto-snima</div>
+                                    
+                                    {/* Dodavanje novog zaposlenog */}
+                                    <div style={{display: "flex", gap: "8px", marginBottom: "15px", flexWrap: "wrap"}}>
+                                        <input 
+                                            style={{...s.inp, flex: 1, minWidth: "150px"}}
+                                            placeholder={`Ime zaposlenog za ${istGodina}. (npr. Urke)`}
+                                            value={istNoviZaposleni}
+                                            onChange={e => setIstNoviZaposleni(e.target.value)}
+                                            onKeyPress={e => { if (e.key === 'Enter') dodajIstZaposlenog(istGodina); }}
+                                        />
+                                        <button style={{...s.btn(true, C.teal), padding: "10px 16px"}} onClick={() => dodajIstZaposlenog(istGodina)}>+ Dodaj</button>
+                                    </div>
+                                    
+                                    {imena.length === 0 ? (
+                                        <div style={{padding: "30px", textAlign: "center", color: C.muted, fontStyle: "italic"}}>Još nema zaposlenih za {istGodina}. godinu.</div>
+                                    ) : isMobile ? (
+                                        // MOBILNI: kartice po zaposlenom
+                                        <div>
+                                            {imena.map(ime => (
+                                                <div key={ime} className="mobile-card">
+                                                    <div style={{display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "8px", paddingBottom: "6px", borderBottom: `1px solid ${C.border}`}}>
+                                                        <div style={{color: C.accent, fontWeight: "bold", fontSize: "14px"}}>{ime}</div>
+                                                        <button style={{background: "transparent", border: "none", color: C.red, cursor: "pointer", fontSize: "16px"}} onClick={() => obrisiIstZaposlenog(istGodina, ime)}>❌</button>
+                                                    </div>
+                                                    {MONTHS_SHORT.map((m, mIdx) => {
+                                                        const b = dobaviIstBonus(istGodina, mIdx, ime);
+                                                        return (
+                                                            <div key={mIdx} className="mobile-card-row">
+                                                                <span className="mobile-card-label">{m}:</span>
+                                                                <input style={{...s.inp, padding: "6px", fontSize: "12px", width: "100px"}} type="number" value={b.iznos_eur || 0} onChange={e => izmeniIstBonus(istGodina, mIdx, ime, e.target.value)} />
+                                                            </div>
+                                                        );
+                                                    })}
+                                                </div>
+                                            ))}
+                                        </div>
+                                    ) : (
+                                        // DESKTOP: tabela mesec × zaposleni
+                                        <div style={{overflowX: "auto"}}>
+                                            <table style={{width: "100%", borderCollapse: "collapse", fontSize: "12px", minWidth: "600px"}}>
+                                                <thead>
+                                                    <tr style={{color: C.muted, textTransform: "uppercase", fontSize: "10px", borderBottom: `1px solid ${C.border}`}}>
+                                                        <th style={{padding: "10px", textAlign: "left", width: "60px"}}>MESEC</th>
+                                                        {imena.map(ime => (
+                                                            <th key={ime} style={{padding: "8px", textAlign: "center"}}>
+                                                                <div style={{color: C.accent}}>{ime}</div>
+                                                                <button style={{background: "transparent", border: "none", color: C.red, cursor: "pointer", fontSize: "10px", marginTop: "2px"}} onClick={() => obrisiIstZaposlenog(istGodina, ime)}>❌</button>
+                                                            </th>
+                                                        ))}
+                                                    </tr>
+                                                </thead>
+                                                <tbody>
+                                                    {MONTHS_SHORT.map((m, mIdx) => (
+                                                        <tr key={mIdx} style={{borderBottom: `1px solid ${C.border}`}}>
+                                                            <td style={{padding: "8px", color: C.accent, fontWeight: "bold"}}>{m}</td>
+                                                            {imena.map(ime => {
+                                                                const b = dobaviIstBonus(istGodina, mIdx, ime);
+                                                                return (
+                                                                    <td key={ime} style={{padding: "4px"}}>
+                                                                        <input style={{...s.inp, padding: "6px", fontSize: "12px", textAlign: "right"}} type="number" value={b.iznos_eur || 0} onChange={e => izmeniIstBonus(istGodina, mIdx, ime, e.target.value)} />
+                                                                    </td>
+                                                                );
+                                                            })}
+                                                        </tr>
+                                                    ))}
+                                                </tbody>
+                                            </table>
+                                        </div>
+                                    )}
+                                </div>
+                                
+                                {/* REZIME */}
+                                <div style={{...s.card, background: "rgba(0, 200, 245, 0.05)", borderLeft: `3px solid ${C.accent}`}}>
+                                    <h3 style={{color: C.accent, marginTop: 0, fontSize: "14px"}}>📈 Rezime za {istGodina}. godinu</h3>
+                                    <div style={{display: "grid", gridTemplateColumns: isMobile ? "1fr" : "repeat(3, 1fr)", gap: "12px"}}>
+                                        <div>
+                                            <div style={{color: C.muted, fontSize: "10px", textTransform: "uppercase"}}>Bruto Promet</div>
+                                            <div style={{color: C.text, fontSize: "16px", fontWeight: "bold"}}>{fmt(sumBrutoEUR)} €</div>
+                                            <div style={{color: C.modra, fontSize: "12px"}}>{fmt(sumBrutoRSD)} din</div>
+                                        </div>
+                                        <div>
+                                            <div style={{color: C.muted, fontSize: "10px", textTransform: "uppercase"}}>Keš Majstora</div>
+                                            <div style={{color: C.text, fontSize: "16px", fontWeight: "bold"}}>{fmt(kesE)} €</div>
+                                            <div style={{color: C.modra, fontSize: "12px"}}>{fmt(kesRSD)} din</div>
+                                        </div>
+                                        <div>
+                                            <div style={{color: C.muted, fontSize: "10px", textTransform: "uppercase"}}>Kristalni NETO</div>
+                                            <div style={{color: C.accent, fontSize: "18px", fontWeight: "bold"}}>{fmt(netoE)} €</div>
+                                            <div style={{color: C.modra, fontSize: "12px"}}>{fmt(kesRSD)} din</div>
+                                        </div>
+                                    </div>
+                                    <div style={{display: "grid", gridTemplateColumns: isMobile ? "1fr 1fr" : "repeat(4, 1fr)", gap: "10px", marginTop: "12px", paddingTop: "12px", borderTop: `1px solid ${C.border}`}}>
+                                        <div style={{fontSize: "11px"}}><span style={{color: C.muted}}>Fis. Kasa:</span> {fmt(sumFisEUR)} € / {fmt(sumFisRSD)} din</div>
+                                        <div style={{fontSize: "11px"}}><span style={{color: C.muted}}>Trošak:</span> {fmt(sumTrosE)} €</div>
+                                        <div style={{fontSize: "11px"}}><span style={{color: C.muted}}>Bonusi:</span> {fmt(sumBonE)} €</div>
+                                        <div style={{fontSize: "11px"}}><span style={{color: C.muted}}>Zaposlenih:</span> {imena.length}</div>
+                                    </div>
+                                </div>
+                            </div>
+                            );
+                        })()}
 
                         {tab === "statistika" && st && (
                             <div style={{width: '100%'}}>

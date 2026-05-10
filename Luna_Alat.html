@@ -3,10 +3,12 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Luna Cerade - Interni Alat v5.7.5</title>
+    <title>Luna Cerade - Interni Alat v6.0</title>
     <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
     <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
     <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+    <script src="https://unpkg.com/jspdf@2.5.1/dist/jspdf.umd.min.js"></script>
+    <script src="https://unpkg.com/html2canvas@1.4.1/dist/html2canvas.min.js"></script>
     <style>
         body { margin: 0; padding: 0; background: radial-gradient(circle at center, #2e1a4a 0%, #100b2e 70%, #08061a 100%); font-family: 'Segoe UI', system-ui, sans-serif; color: #ffffff; overflow-x: hidden; }
         ::-webkit-scrollbar { width: 8px; height: 8px;}
@@ -57,6 +59,25 @@
         const API_URL = "https://luna-backend-7xe6.onrender.com/api";
 
         const MONTHS_SHORT = ["Jan","Feb","Mar","Apr","Maj","Jun","Jul","Avg","Sep","Okt","Nov","Dec"];
+        
+        // Helper: vrati niz indexa meseci u opadajucem redosledu (Dec->Jan)
+        // Za tekucu godinu: pocinje od trenutnog meseca pa unazad (Maj 2026 -> Apr -> Mar -> Feb -> Jan)
+        // Za druge godine: Dec -> Nov -> ... -> Jan
+        function sortiraniMeseci(godina) {
+            const sad = new Date();
+            const tekucaGodina = sad.getFullYear();
+            const tekuciMesec = sad.getMonth(); // 0-11
+            
+            if (godina === tekucaGodina) {
+                // Krene od tekuceg meseca, ide unazad
+                const result = [];
+                for (let i = tekuciMesec; i >= 0; i--) result.push(i);
+                return result;
+            } else {
+                // Sve mesece, Dec->Jan
+                return [11, 10, 9, 8, 7, 6, 5, 4, 3, 2, 1, 0];
+            }
+        }
         
         const tekucaGodina = new Date().getFullYear();
         const startnaGodina = 2024;
@@ -401,12 +422,11 @@
             const [expandedZapId, setExpandedZapId] = useState(null); // za collapse u Bonusi karticama
             
             // === Print modal (univerzalan za sve uredjaje) ===
-            const [printModalHtml, setPrintModalHtml] = useState(null);
+            const [printModalData, setPrintModalData] = useState(null); // {html, tip, broj, kupac}
             const [generisanjeUToku, setGenerisanjeUToku] = useState(false);
+            const [pdfUToku, setPdfUToku] = useState(false);
             
-            const otvoriPrintModal = (html) => {
-                setPrintModalHtml(html);
-            };
+            const zatvoriPrintModal = () => setPrintModalData(null);
             
             // Generise/dohvata broj dokumenta iz baze (atomicno) i otvara modal
             const prikaziDokument = async (nalog, tip) => {
@@ -425,7 +445,6 @@
                         if (!res.ok) throw new Error("Backend greška");
                         const data = await res.json();
                         broj = data.broj;
-                        // Update lokalnog nalozi state-a da broj ostane
                         setNalozi(nalozi.map(n => n.id === nalog.id ? { ...n, [koloneBroj]: broj } : n));
                     } catch (e) {
                         flash("Greška pri generisanju broja dokumenta!", true);
@@ -436,20 +455,150 @@
                 }
                 
                 const html = tip === 'OTP' ? otpremnicaHTML(nalog, broj) : garantniHTML(nalog, broj);
-                setPrintModalHtml(html);
+                setPrintModalData({ html, tip, broj, kupac: nalog.kupac || "" });
             };
             
+            // Stampaj preko window.open + browser print (postojeci pristup)
             const stampajIzModala = () => {
-                // Otvori novi prozor SAMO u trenutku kad korisnik klikne dugme - to izbegne pop-up blocker
+                if (!printModalData) return;
                 const w = window.open("", "_blank");
                 if (!w) {
                     alert("Browser je blokirao otvaranje novog prozora. Dozvoli pop-up za ovaj sajt u podešavanjima browser-a.");
                     return;
                 }
-                w.document.write(printModalHtml);
+                w.document.write(printModalData.html);
                 w.document.close();
                 w.focus();
                 setTimeout(() => { try { w.print(); } catch(e) {} }, 500);
+            };
+            
+            // Generise PDF blob iz HTML-a koristeci html2canvas + jsPDF
+            const generisiPDFBlob = async (htmlString) => {
+                // Pravim privremen skriven div sa otpremnicom
+                const tempDiv = document.createElement('div');
+                tempDiv.style.cssText = 'position: absolute; left: -9999px; top: 0; width: 800px; background: white;';
+                // Strip <html><head><body> wrapper - uzmi samo body sadrzaj + style
+                const styleMatch = htmlString.match(/<style>([\s\S]*?)<\/style>/);
+                const bodyMatch = htmlString.match(/<body[^>]*>([\s\S]*?)<\/body>/);
+                tempDiv.innerHTML = (styleMatch ? `<style>${styleMatch[1]}</style>` : '') + 
+                                    (bodyMatch ? bodyMatch[1] : htmlString);
+                document.body.appendChild(tempDiv);
+                
+                try {
+                    // Sacekaj da slike (logo) ucitaju
+                    await new Promise(resolve => setTimeout(resolve, 300));
+                    
+                    const canvas = await html2canvas(tempDiv, {
+                        scale: 2,
+                        useCORS: true,
+                        backgroundColor: '#ffffff',
+                        logging: false
+                    });
+                    
+                    // Konvertuj u PDF (A4)
+                    const { jsPDF } = window.jspdf;
+                    const pdf = new jsPDF('p', 'mm', 'a4');
+                    const imgWidth = 210; // A4 sirina mm
+                    const pageHeight = 297; // A4 visina mm
+                    const imgHeight = (canvas.height * imgWidth) / canvas.width;
+                    
+                    const imgData = canvas.toDataURL('image/jpeg', 0.92);
+                    
+                    if (imgHeight <= pageHeight) {
+                        // Stane na jednu stranicu
+                        pdf.addImage(imgData, 'JPEG', 0, 0, imgWidth, imgHeight);
+                    } else {
+                        // Treba vise stranica
+                        let heightLeft = imgHeight;
+                        let position = 0;
+                        pdf.addImage(imgData, 'JPEG', 0, position, imgWidth, imgHeight);
+                        heightLeft -= pageHeight;
+                        while (heightLeft > 0) {
+                            position = heightLeft - imgHeight;
+                            pdf.addPage();
+                            pdf.addImage(imgData, 'JPEG', 0, position, imgWidth, imgHeight);
+                            heightLeft -= pageHeight;
+                        }
+                    }
+                    
+                    return pdf.output('blob');
+                } finally {
+                    document.body.removeChild(tempDiv);
+                }
+            };
+            
+            // Sacuvaj PDF na disk (download)
+            const sacuvajPDFLokalno = async () => {
+                if (!printModalData) return;
+                setPdfUToku(true);
+                try {
+                    const blob = await generisiPDFBlob(printModalData.html);
+                    const filename = printModalData.tip === 'OTP' 
+                        ? `Otpremnica_${printModalData.broj}.pdf`
+                        : `Garancija_${printModalData.broj}.pdf`;
+                    const url = URL.createObjectURL(blob);
+                    const a = document.createElement('a');
+                    a.href = url;
+                    a.download = filename;
+                    document.body.appendChild(a);
+                    a.click();
+                    document.body.removeChild(a);
+                    URL.revokeObjectURL(url);
+                    flash("✓ PDF sačuvan!");
+                } catch (e) {
+                    flash("Greška pri kreiranju PDF-a!", true);
+                    console.error(e);
+                }
+                setPdfUToku(false);
+            };
+            
+            // Posalji preko Native Share API
+            const posaljiPDF = async () => {
+                if (!printModalData) return;
+                setPdfUToku(true);
+                try {
+                    const blob = await generisiPDFBlob(printModalData.html);
+                    const filename = printModalData.tip === 'OTP' 
+                        ? `Otpremnica_${printModalData.broj}.pdf`
+                        : `Garancija_${printModalData.broj}.pdf`;
+                    const file = new File([blob], filename, { type: 'application/pdf' });
+                    
+                    const tipNaziv = printModalData.tip === 'OTP' ? 'otpremnica' : 'garancija';
+                    const tekstPoruke = `Poštovani, u prilogu je ${tipNaziv}. Luna Cerade i Tende! Hvala na ukazanom poverenju!`;
+                    
+                    // Provera da li Native Share radi sa fajlovima
+                    if (navigator.share && navigator.canShare && navigator.canShare({ files: [file] })) {
+                        try {
+                            await navigator.share({
+                                title: filename.replace('.pdf', ''),
+                                text: tekstPoruke,
+                                files: [file]
+                            });
+                            flash("✓ Otpremnica poslata!");
+                        } catch (e) {
+                            // User je možda otkazao - to je OK, ne prikazuj grešku
+                            if (e.name !== 'AbortError') {
+                                flash("Greška pri slanju!", true);
+                                console.error(e);
+                            }
+                        }
+                    } else {
+                        // Fallback: download PDF
+                        const url = URL.createObjectURL(blob);
+                        const a = document.createElement('a');
+                        a.href = url;
+                        a.download = filename;
+                        document.body.appendChild(a);
+                        a.click();
+                        document.body.removeChild(a);
+                        URL.revokeObjectURL(url);
+                        flash("✓ PDF sačuvan! Native Share nije dostupan, manuelno priložite u WhatsApp/Email.");
+                    }
+                } catch (e) {
+                    flash("Greška pri kreiranju PDF-a!", true);
+                    console.error(e);
+                }
+                setPdfUToku(false);
             };
             
             useEffect(() => {
@@ -515,6 +664,28 @@
 
             const sacuvajNalog = async () => {
                 if (!form.kupac) return alert("Moraš uneti kupca.");
+                
+                // EDIT MODE: ako form ima id, to je izmena postojeceg
+                if (form.id) {
+                    const nForDb = { 
+                        ...form,
+                        ukupno_rsd: u_rsd(form), ukupno_eur: u_eur(form),
+                        kasa_eur: num(form.kasa_eur), kasa_rsd: num(form.kasa_rsd),
+                        vrsta: form.stavke[0].opis || "—", kolicina: num(form.stavke[0].kolicina), jedinica: form.stavke[0].jedinica
+                    };
+                    try {
+                        const res = await fetch(`${API_URL}/nalozi/${form.id}`, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(nForDb) });
+                        if (!res.ok) throw new Error("Baza je odbila izmenu.");
+                        const savedN = await res.json();
+                        setNalozi(nalozi.map(n => n.id === form.id ? { ...savedN, stavke: form.stavke } : n));
+                        flash("✓ Nalog izmenjen!");
+                        setForm({ ...initialForm, datum: form.datum, stavke: [{...initialItem}] });
+                        setSubTab("lista"); 
+                    } catch (e) { flash("Greška pri izmeni!", true); }
+                    return;
+                }
+                
+                // CREATE MODE: novi nalog
                 const nForDb = { 
                     ...form,
                     broj: `NAL-${new Date().getFullYear()}-${String(nalozi.length + 1).padStart(4, "0")}`,
@@ -531,6 +702,32 @@
                     setForm({ ...initialForm, datum: form.datum, stavke: [{...initialItem}] });
                     setSubTab("lista"); 
                 } catch (e) { flash("Greška pri čuvanju!", true); }
+            };
+            
+            // Otvori formu sa podacima postojeceg naloga (edit mode)
+            const pocniIzmenu = (nalog) => {
+                const stavke = nalog.stavke && nalog.stavke.length > 0 ? nalog.stavke : [{...initialItem}];
+                setForm({
+                    id: nalog.id,
+                    broj: nalog.broj,
+                    kupac: nalog.kupac || "",
+                    adresa: nalog.adresa || "",
+                    telefon: nalog.telefon || "",
+                    email: nalog.email || "",
+                    datum: nalog.datum ? (typeof nalog.datum === 'string' ? nalog.datum.split('T')[0] : new Date(nalog.datum).toISOString().split('T')[0]) : new Date().toISOString().split('T')[0],
+                    kasa_eur: nalog.kasa_eur || 0,
+                    kasa_rsd: nalog.kasa_rsd || 0,
+                    napomena: nalog.napomena || "",
+                    stavke: stavke
+                });
+                setSubTab("novi");
+                setHamburgerOpen(false);
+                window.scrollTo({top: 0, behavior: 'smooth'});
+            };
+            
+            const odustaniIzmenu = () => {
+                setForm({ ...initialForm, stavke: [{...initialItem}] });
+                setSubTab("lista");
             };
 
             const obrisiNalog = async (id) => {
@@ -748,7 +945,7 @@
                     <div style={s.top}>
                         <div style={{fontWeight: 800, color: C.text, fontSize: "18px", display: "flex", alignItems: "center"}}>
                             <img src="https://lunacerade.rs/wp-content/uploads/2023/05/logo-luna-cerade.png" alt="" style={{height: "26px", marginRight: "10px"}} onError={(e) => e.target.style.display='none'} />
-                            Interni Alat <span style={{color: C.accent, fontSize: "11px", marginLeft: "6px"}}>v5.7.5</span>
+                            Interni Alat <span style={{color: C.accent, fontSize: "11px", marginLeft: "6px"}}>v6.0</span>
                         </div>
                         {/* Desktop tabovi - prikazani samo na desktopu */}
                         {!isMobile && (
@@ -810,7 +1007,7 @@
                         {tab === "nalozi" && (
                             <div style={{width: '100%'}}>
                                 <div style={{display: "flex", gap: "10px", marginBottom: "15px"}}>
-                                    <button style={s.btn(subTab === "novi")} onClick={() => setSubTab("novi")}>Novi nalog</button>
+                                    <button style={s.btn(subTab === "novi")} onClick={() => setSubTab("novi")}>{form.id ? "✏️ Izmena naloga" : "Novi nalog"}</button>
                                     <button style={s.btn(subTab === "lista")} onClick={() => setSubTab("lista")}>Lista naloga</button>
                                 </div>
                                 
@@ -887,7 +1084,12 @@
                                             </div>
                                         </div>
                                         
-                                        <button style={{...s.btn(true, C.main), marginTop: "20px", width: "100%", padding: "12px", fontSize: "14px"}} onClick={sacuvajNalog}>🚀 SAČUVAJ NALOG U BAZU</button>
+                                        <div style={{display: "flex", gap: "10px", marginTop: "20px"}}>
+                                            {form.id && (
+                                                <button style={{...s.btn(false, C.bgCard), padding: "12px 20px", fontSize: "14px"}} onClick={odustaniIzmenu}>↩️ Odustani</button>
+                                            )}
+                                            <button style={{...s.btn(true, C.main), flex: 1, padding: "12px", fontSize: "14px"}} onClick={sacuvajNalog}>{form.id ? "💾 SAČUVAJ IZMENE" : "🚀 SAČUVAJ NALOG U BAZU"}</button>
+                                        </div>
                                     </div>
                                 )}
 
@@ -909,7 +1111,10 @@
                                                                     <div style={{color: C.accent, fontWeight: "bold", fontSize: "14px"}}>{n.broj}</div>
                                                                     <div style={{color: C.muted, fontSize: "11px"}}>{n.datum}</div>
                                                                 </div>
-                                                                <button style={{background: "rgba(255, 123, 140, 0.15)", border: `1px solid ${C.red}`, color: C.red, cursor: "pointer", fontSize: "16px", borderRadius: "6px", width: "36px", height: "36px"}} onClick={() => obrisiNalog(n.id)}>❌</button>
+                                                                <div style={{display: "flex", gap: "6px"}}>
+                                                                    <button style={{background: "rgba(140, 86, 242, 0.15)", border: `1px solid ${C.main}`, color: C.main, cursor: "pointer", fontSize: "14px", borderRadius: "6px", width: "36px", height: "36px"}} onClick={() => pocniIzmenu(n)} title="Izmeni nalog">✏️</button>
+                                                                    <button style={{background: "rgba(255, 123, 140, 0.15)", border: `1px solid ${C.red}`, color: C.red, cursor: "pointer", fontSize: "16px", borderRadius: "6px", width: "36px", height: "36px"}} onClick={() => obrisiNalog(n.id)}>❌</button>
+                                                                </div>
                                                             </div>
                                                             <div style={{padding: "8px 0", borderTop: `1px solid ${C.border}`, borderBottom: `1px solid ${C.border}`, marginBottom: "10px"}}>
                                                                 <div style={{color: C.text, fontWeight: "bold", fontSize: "14px"}}>{n.kupac || "—"}</div>
@@ -999,6 +1204,7 @@
                                                             <button style={{...s.btn(false), fontSize: "9px", padding: "4px 6px"}} onClick={() => prikaziDokument(n, "GAR")}>GARANCIJA</button>
                                                         </td>
                                                         <td style={{padding: "12px 10px", textAlign: "right"}}>
+                                                            <button style={{background: "transparent", border: "none", color: C.main, cursor: "pointer", fontSize: "14px", marginRight: "4px"}} onClick={() => pocniIzmenu(n)} title="Izmeni nalog">✏️</button>
                                                             <button style={{background: "transparent", border: "none", color: C.red, cursor: "pointer", fontSize: "14px"}} onClick={() => obrisiNalog(n.id)}>❌</button>
                                                         </td>
                                                     </tr>
@@ -1372,7 +1578,8 @@
                                     <h3 style={{color: C.text, marginTop: 0}}>Mesečni presek poslovanja</h3>
                                     {isMobile ? (
                                         <div>
-                                            {MONTHS_SHORT.map((m, i) => {
+                                            {sortiraniMeseci(filterYear).map(i => {
+                                                const m = MONTHS_SHORT[i];
                                                 const curr = getStats(filterYear, i);
                                                 const prev = getStats(filterYear - 1, i);
                                                 const hasData = curr.promEUR > 0 || curr.promRSD > 0 || curr.trosE > 0 || curr.trosRSD > 0 || curr.bonE > 0 || curr.bonRSD > 0;
@@ -1459,7 +1666,8 @@
                                             </tr>
                                         </thead>
                                         <tbody>
-                                            {MONTHS_SHORT.map((m, i) => {
+                                            {sortiraniMeseci(filterYear).map(i => {
+                                                const m = MONTHS_SHORT[i];
                                                 const curr = getStats(filterYear, i);
                                                 const prev = getStats(filterYear - 1, i); 
                                                 
@@ -1603,23 +1811,31 @@
                         </div>
                     )}
                     {/* Print Modal - radi i na mobilnom i na desktopu */}
-                    {printModalHtml && (
+                    {printModalData && (
                         <div style={{position: 'fixed', top:0, left:0, right:0, bottom:0, background: 'rgba(0,0,0,0.85)', zIndex: 2000, display: 'flex', flexDirection: 'column', backdropFilter: 'blur(5px)'}}>
                             {/* Header sa dugmadima */}
-                            <div style={{display: "flex", justifyContent: "space-between", alignItems: "center", padding: "12px 20px", background: "#1a1a2e", borderBottom: `1px solid ${C.border}`, position: "sticky", top: 0, zIndex: 10}}>
-                                <button style={{...s.btn(false), padding: "10px 16px", fontSize: "14px"}} onClick={() => setPrintModalHtml(null)}>✕ Zatvori</button>
-                                <button style={{...s.btn(true, C.accent), padding: "10px 20px", fontSize: "14px", fontWeight: "bold"}} onClick={stampajIzModala}>🖨️ Štampaj / Sačuvaj PDF</button>
+                            <div style={{display: "flex", justifyContent: "space-between", alignItems: "center", padding: "12px 20px", background: "#1a1a2e", borderBottom: `1px solid ${C.border}`, position: "sticky", top: 0, zIndex: 10, gap: "8px", flexWrap: "wrap"}}>
+                                <button style={{...s.btn(false), padding: "10px 14px", fontSize: "13px"}} onClick={zatvoriPrintModal} disabled={pdfUToku}>✕ Zatvori</button>
+                                <div style={{display: "flex", gap: "6px", flexWrap: "wrap"}}>
+                                    <button style={{...s.btn(true, C.teal), padding: "10px 14px", fontSize: "13px", fontWeight: "bold", opacity: pdfUToku ? 0.5 : 1}} onClick={posaljiPDF} disabled={pdfUToku} title="Pošalji preko WhatsApp/Viber/Email">
+                                        {pdfUToku ? "⏳ Generišem..." : "📤 Pošalji"}
+                                    </button>
+                                    <button style={{...s.btn(true, C.main), padding: "10px 14px", fontSize: "13px", fontWeight: "bold", opacity: pdfUToku ? 0.5 : 1}} onClick={sacuvajPDFLokalno} disabled={pdfUToku}>
+                                        {pdfUToku ? "⏳ Generišem..." : "💾 Sačuvaj PDF"}
+                                    </button>
+                                    <button style={{...s.btn(true, C.accent), padding: "10px 14px", fontSize: "13px", fontWeight: "bold"}} onClick={stampajIzModala} disabled={pdfUToku}>🖨️ Štampaj</button>
+                                </div>
                             </div>
                             {/* Sadržaj dokumenta - scrollable, renderovan kroz dangerouslySetInnerHTML */}
                             <div style={{flex: 1, overflow: "auto", background: "#ffffff", padding: "0"}}>
                                 <div 
-                                    dangerouslySetInnerHTML={{ __html: printModalHtml.replace(/<!DOCTYPE[^>]*>|<html[^>]*>|<\/html>|<head>[\s\S]*?<\/head>|<body[^>]*>|<\/body>/gi, '') }}
+                                    dangerouslySetInnerHTML={{ __html: printModalData.html.replace(/<!DOCTYPE[^>]*>|<html[^>]*>|<\/html>|<head>[\s\S]*?<\/head>|<body[^>]*>|<\/body>/gi, '') }}
                                     style={{minHeight: "100%", color: "#1a1a2e", padding: "20px"}}
                                 />
                             </div>
                             {/* Footer info */}
                             <div style={{padding: "10px 16px", background: "#1a1a2e", borderTop: `1px solid ${C.border}`, color: C.muted, fontSize: "11px", textAlign: "center"}}>
-                                💡 Klikni "Štampaj" → izaberi pisač ili "Sačuvaj kao PDF" za slanje kupcu
+                                💡 <strong>📤 Pošalji</strong> = WhatsApp/Viber/Email | <strong>💾 PDF</strong> = download | <strong>🖨️ Štampaj</strong> = pisač
                             </div>
                         </div>
                     )}
